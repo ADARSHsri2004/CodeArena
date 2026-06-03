@@ -2,10 +2,12 @@ import { Request, Response, NextFunction }
 from "express";
 
 import jwt from "jsonwebtoken";
+import { JWT_SECRET } from "../config/jwt";
+import { JwtPayload } from "../types/auth.types";
 
 export interface AuthRequest
 extends Request {
-  user?: any;
+  user?: JwtPayload;
 }
 
 export const protect = (
@@ -13,31 +15,35 @@ export const protect = (
   res: Response,
   next: NextFunction
 ) => {
-
   const authHeader =
     req.headers.authorization;
 
-  if (!authHeader) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({
-      message: "Unauthorized"
+      message: "Missing bearer token"
     });
   }
 
-  const token =
-    authHeader.split(" ")[1];
+  const token = authHeader.slice(7).trim();
+
+  if (!token) {
+    return res.status(401).json({
+      message: "Missing bearer token"
+    });
+  }
 
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET!
-    );
+      JWT_SECRET
+    ) as JwtPayload;
 
     req.user = decoded;
 
     next();
   } catch {
     return res.status(401).json({
-      message: "Invalid token"
+      message: "Invalid or expired token"
     });
   }
 };

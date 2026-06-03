@@ -1,17 +1,38 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { prisma } from "../config/prisma";
+import { JWT_EXPIRES_IN, JWT_SECRET } from "../config/jwt";
+import { PublicUser } from "../types/auth.types";
+
+const toPublicUser = (
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    elo: number;
+    createdAt: Date;
+  }
+): PublicUser => ({
+  id: user.id,
+  username: user.username,
+  email: user.email,
+  elo: user.elo,
+  createdAt: user.createdAt
+});
 
 export const registerUser = async (
   username: string,
   email: string,
   password: string
 ) => {
+  const normalizedUsername = username.trim();
+  const normalizedEmail = email.trim().toLowerCase();
+
   const existingUser = await prisma.user.findFirst({
     where: {
       OR: [
-        { email },
-        { username }
+        { email: normalizedEmail },
+        { username: normalizedUsername }
       ]
     }
   });
@@ -22,23 +43,33 @@ export const registerUser = async (
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  const user = await prisma.user.create({
-    data: {
-      username,
-      email,
-      password: hashedPassword
-    }
-  });
+  try {
+    const user = await prisma.user.create({
+      data: {
+        username: normalizedUsername,
+        email: normalizedEmail,
+        password: hashedPassword
+      }
+    });
 
-  return user;
+    return toPublicUser(user);
+  } catch (error: any) {
+    if (error?.code === "P2002") {
+      throw new Error("User already exists");
+    }
+
+    throw error;
+  }
 };
 
 export const loginUser = async (
   email: string,
   password: string
 ) => {
+  const normalizedEmail = email.trim().toLowerCase();
+
   const user = await prisma.user.findUnique({
-    where: { email }
+    where: { email: normalizedEmail }
   });
 
   if (!user) {
@@ -56,16 +87,19 @@ export const loginUser = async (
 
   const token = jwt.sign(
     {
-      id: user.id
+      id: user.id,
+      email: user.email
     },
-    process.env.JWT_SECRET!,
+    JWT_SECRET,
     {
-      expiresIn: "7d"
+      expiresIn: JWT_EXPIRES_IN
     }
   );
 
+  const safeUser = toPublicUser(user);
+
   return {
     token,
-    user
+    user: safeUser
   };
 };

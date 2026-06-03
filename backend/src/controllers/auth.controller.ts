@@ -4,11 +4,18 @@ import {
   loginUser
 } from "../services/auth.service";
 import { prisma } from "../config/prisma";
+import { AuthRequest } from "../middleware/auth.middleware";
 
 export const me = async (
-  req: any,
+  req: AuthRequest,
   res: Response
 ) => {
+  if (!req.user?.id) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized"
+    });
+  }
 
   const user =
     await prisma.user.findUnique({
@@ -17,7 +24,19 @@ export const me = async (
       }
     });
 
-  return res.json(user);
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found"
+    });
+  }
+
+  const { password: _password, ...safeUser } = user;
+
+  return res.json({
+    success: true,
+    user: safeUser
+  });
 };
 export const register = async (
   req: Request,
@@ -38,9 +57,16 @@ export const register = async (
       user
     });
   } catch (error: any) {
-    return res.status(400).json({
+    if (error.message === "User already exists") {
+      return res.status(409).json({
+        success: false,
+        message: error.message
+      });
+    }
+
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message: "Internal server error"
     });
   }
 };
@@ -62,9 +88,16 @@ export const login = async (
       ...data
     });
   } catch (error: any) {
+    if (error.message === "Invalid credentials") {
+      return res.status(401).json({
+        success: false,
+        message: error.message
+      });
+    }
+
     return res.status(401).json({
       success: false,
-      message: error.message
+      message: "Internal server error"
     });
   }
 };
