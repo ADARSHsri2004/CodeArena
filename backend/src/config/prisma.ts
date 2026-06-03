@@ -6,7 +6,6 @@ import { PrismaClient } from "../generated/prisma/client";
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });

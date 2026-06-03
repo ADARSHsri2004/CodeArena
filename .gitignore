@@ -58,3 +58,6 @@ docker-compose.override.yml
 # Prisma engine/runtime artifacts
 node_modules/.prisma
 **/node_modules/.prisma
+
+AGENTS.md
+CLAUDE.md
