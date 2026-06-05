@@ -1,11 +1,22 @@
 "use client";
 
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import type { TooltipProps } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { getRatingSeries } from "@/lib/data";
 
-function RatingTooltip({ active, payload }: TooltipProps<number, string>) {
+type RatingTooltipPayload = {
+  payload: {
+    name: string;
+  };
+  value: number;
+};
+
+type RatingTooltipProps = {
+  active?: boolean;
+  payload?: RatingTooltipPayload[];
+};
+
+function RatingTooltip({ active, payload }: RatingTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-2xl border border-border bg-surface px-3 py-2 text-sm">

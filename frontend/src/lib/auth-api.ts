@@ -1,0 +1,69 @@
+import type { AuthUser } from "@/types";
+import { api } from "@/lib/api";
+import { setAuthToken } from "@/lib/auth-session";
+
+export type BackendAuthUser = {
+  id: string;
+  username: string;
+  email: string;
+  elo: number;
+  createdAt: string;
+};
+
+type AuthPayload = {
+  success: boolean;
+  user: BackendAuthUser;
+};
+
+type LoginPayload = AuthPayload & {
+  token: string;
+};
+
+function buildAvatarUrl(username: string) {
+  return `https://api.dicebear.com/9.x/bottts/svg?seed=${encodeURIComponent(username)}`;
+}
+
+export function mapBackendUserToAuthUser(user: BackendAuthUser): AuthUser {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    avatarUrl: buildAvatarUrl(user.username),
+    elo: user.elo,
+    peakElo: user.elo,
+    matchesPlayed: 0,
+    winRate: 0,
+  };
+}
+
+export async function loginUser(email: string, password: string) {
+  const { data } = await api.post<LoginPayload>("/auth/login", {
+    email,
+    password,
+  });
+
+  setAuthToken(data.token);
+
+  return {
+    token: data.token,
+    user: mapBackendUserToAuthUser(data.user),
+  };
+}
+
+export async function registerUser(username: string, email: string, password: string) {
+  const { data } = await api.post<AuthPayload>("/auth/register", {
+    username,
+    email,
+    password,
+  });
+
+  return {
+    user: mapBackendUserToAuthUser(data.user),
+  };
+}
+
+export async function fetchCurrentUser() {
+  const { data } = await api.get<AuthPayload>("/auth/me");
+
+  return mapBackendUserToAuthUser(data.user);
+}

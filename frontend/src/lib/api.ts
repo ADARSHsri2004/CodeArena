@@ -1,7 +1,8 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, AxiosHeaders } from "axios";
+import { authTokenKey } from "@/lib/auth-session";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api",
+  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api",
   timeout: 12000,
   headers: {
     "Content-Type": "application/json",
@@ -10,8 +11,9 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = window.localStorage.getItem("codearena-token");
+    const token = window.localStorage.getItem(authTokenKey);
     if (token) {
+      config.headers = AxiosHeaders.from(config.headers);
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
