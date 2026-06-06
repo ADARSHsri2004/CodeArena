@@ -65,7 +65,10 @@ export function ProblemDetailView({ problem }: { problem: Problem }) {
           )}
         </CardContent>
       </Card>
-      <CodeEditorWrapper initialValue={"function solve(input) {\n  // Start your duel here\n  return input;\n}\n"} />
+      <CodeEditorWrapper
+        problemId={problem.id}
+        initialValue={"function solve(input) {\n  // Start your duel here\n  return input;\n}\n"}
+      />
     </div>
   );
 }

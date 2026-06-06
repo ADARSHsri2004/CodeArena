@@ -18,7 +18,7 @@ export const dashboardNavigation = [
 
 export const problems: Problem[] = [
   {
-    id: "p1",
+    id: "11111111-1111-4111-8111-111111111111",
     slug: "two-sum-sprint",
     title: "Two Sum Sprint",
     difficulty: "easy",
@@ -37,7 +37,7 @@ export const problems: Problem[] = [
     discussion: ["Can you solve this in O(n) time?", "Why does the hash map approach win here?"],
   },
   {
-    id: "p2",
+    id: "22222222-2222-4222-8222-222222222222",
     slug: "balanced-brackets-duel",
     title: "Balanced Brackets Duel",
     difficulty: "medium",
@@ -56,7 +56,7 @@ export const problems: Problem[] = [
     discussion: ["What data structure naturally models this constraint?", "How would you extend this for custom bracket pairs?"],
   },
   {
-    id: "p3",
+    id: "33333333-3333-4333-8333-333333333333",
     slug: "battlefield-pathfinding",
     title: "Battlefield Pathfinding",
     difficulty: "hard",

@@ -8,13 +8,15 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  username  String    @unique
-  email     String    @unique
-  password  String
-  elo       Int       @default(1200)
-  createdAt DateTime  @default(now())
+  id          String       @id @default(uuid())
+  username    String       @unique
+  email       String       @unique
+  password    String
+  elo         Int          @default(1200)
+  createdAt   DateTime     @default(now())
+  submissions Submission[]
 }
+
 enum Difficulty {
   EASY
   MEDIUM
@@ -22,21 +24,50 @@ enum Difficulty {
 }
 
 model Problem {
-  id          String      @id @default(uuid())
+  id String @id @default(uuid())
 
-  title       String
+  title String
 
-  slug        String      @unique
+  slug String @unique
 
-  difficulty  Difficulty
+  difficulty Difficulty
 
-  statement   String
+  statement String
 
-  examples    Json
+  examples Json
 
   constraints Json
 
-  createdAt   DateTime    @default(now())
+  createdAt DateTime @default(now())
 
-  updatedAt   DateTime    @updatedAt
+  updatedAt   DateTime     @updatedAt
+  submissions Submission[]
+}
+
+enum SubmissionStatus {
+  PENDING
+  ACCEPTED
+  WRONG_ANSWER
+  TIME_LIMIT_EXCEEDED
+  RUNTIME_ERROR
+}
+
+enum Language {
+  CPP
+}
+
+model Submission {
+  id        String           @id @default(uuid())
+  userId    String
+  problemId String
+  language  Language
+  code      String
+  status    SubmissionStatus
+  createdAt DateTime         @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([problemId])
 }

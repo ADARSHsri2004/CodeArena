@@ -17,6 +17,25 @@ export type Problem = {
   discussion: string[];
 };
 
+export type SubmissionLanguage = "CPP";
+
+export type SubmissionStatus =
+  | "PENDING"
+  | "ACCEPTED"
+  | "WRONG_ANSWER"
+  | "TIME_LIMIT_EXCEEDED"
+  | "RUNTIME_ERROR";
+
+export type Submission = {
+  id: string;
+  userId: string;
+  problemId: string;
+  language: SubmissionLanguage;
+  code: string;
+  status: SubmissionStatus;
+  createdAt: string;
+};
+
 export type LeaderboardEntry = {
   rank: number;
   username: string;
