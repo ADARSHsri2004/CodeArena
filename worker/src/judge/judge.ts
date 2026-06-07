@@ -2,10 +2,7 @@ import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
 import { randomUUID } from "crypto";
-import {
-  parseTimeAndMemory,
-  runCommand,
-} from "./docker";
+import { runCommand } from "./docker";
 import type {
   JudgeSubmissionRecord,
   SubmissionJudgementUpdate,
@@ -177,24 +174,13 @@ export async function judgeSubmission(
       const runResult = await runDockerCommand(
         DEFAULT_DOCKER_IMAGE,
         workdir,
-        [
-          "/usr/bin/time",
-          "-f",
-          "__JUDGE_TIME__:%e\n__JUDGE_MEM__:%M",
-          "/workspace/main",
-        ],
+        ["/workspace/main"],
         submission.memoryLimitMb,
         submission.timeLimitMs + 250,
         testCase.input,
       );
 
-      const metrics = parseTimeAndMemory(runResult.stderr);
-      if (metrics.executionTimeMs !== null) {
-        executionTimeMs += metrics.executionTimeMs;
-      }
-      if (metrics.memoryUsedKb !== null) {
-        memoryUsedKb = Math.max(memoryUsedKb, metrics.memoryUsedKb);
-      }
+      executionTimeMs += runResult.durationMs;
 
       if (runResult.timedOut) {
         return {

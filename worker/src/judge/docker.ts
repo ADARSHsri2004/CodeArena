@@ -6,6 +6,7 @@ export type CommandResult = {
   stdout: string;
   stderr: string;
   timedOut: boolean;
+  durationMs: number;
 };
 
 type RunCommandOptions = {
@@ -23,6 +24,7 @@ export function runCommand(
     let stderr = "";
     let timedOut = false;
     let settled = false;
+    const startedAt = Date.now();
 
     const child = spawn(command, args, {
       stdio: ["pipe", "pipe", "pipe"],
@@ -74,19 +76,8 @@ export function runCommand(
         stdout,
         stderr,
         timedOut,
+        durationMs: Date.now() - startedAt,
       });
     });
   });
-}
-
-export function parseTimeAndMemory(stderr: string) {
-  const timeMatch = stderr.match(/__JUDGE_TIME__:(\d+(?:\.\d+)?)/);
-  const memoryMatch = stderr.match(/__JUDGE_MEM__:(\d+)/);
-
-  return {
-    executionTimeMs: timeMatch
-      ? Math.max(0, Math.round(Number.parseFloat(timeMatch[1]) * 1000))
-      : null,
-    memoryUsedKb: memoryMatch ? Number.parseInt(memoryMatch[1], 10) : null,
-  };
 }
