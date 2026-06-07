@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
 import { JWT_SECRET } from "./jwt";
 import { prisma } from "./prisma";
-import type { Submission } from "../generated/prisma-json/client";
+import type { Submission } from "../generated/prisma2/client";
 
 const FRONTEND_ORIGIN =
   process.env.FRONTEND_URL ?? "http://localhost:3000";

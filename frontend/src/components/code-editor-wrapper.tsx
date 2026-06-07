@@ -112,12 +112,25 @@ export function CodeEditorWrapper({
       </div>
       <Separator />
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
-        <div className="text-xs text-muted">
-          {submission
-            ? `Status: ${submissionStatusLabels[submission.status]}`
-            : compact
-              ? "Compact battle mode active."
-              : "Production editor with Monaco, hotkeys, and live run feedback."}
+        <div className="space-y-1 text-xs text-muted">
+          <p>
+            {submission
+              ? `Status: ${submissionStatusLabels[submission.status as keyof typeof submissionStatusLabels]}`
+              : compact
+                ? "Compact battle mode active."
+                : "Production editor with Monaco, hotkeys, and live run feedback."}
+          </p>
+          {submission ? (
+            <p>
+              Tests: {submission.passedTestCases}/{submission.totalTestCases}
+              {submission.executionTimeMs !== null
+                ? ` · Time: ${submission.executionTimeMs} ms`
+                : ""}
+              {submission.memoryUsedKb !== null
+                ? ` · Memory: ${submission.memoryUsedKb} KB`
+                : ""}
+            </p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">
@@ -136,6 +149,16 @@ export function CodeEditorWrapper({
       </div>
       {error ? (
         <div className="px-4 pb-4 text-sm text-danger">{error}</div>
+      ) : null}
+      {submission?.compilerOutput ? (
+        <pre className="mx-4 mb-4 max-h-40 overflow-auto rounded-2xl border border-border/70 bg-black/30 px-4 py-3 text-xs leading-6 text-danger">
+          {submission.compilerOutput}
+        </pre>
+      ) : null}
+      {submission?.runtimeOutput ? (
+        <pre className="mx-4 mb-4 max-h-40 overflow-auto rounded-2xl border border-border/70 bg-black/30 px-4 py-3 text-xs leading-6 text-muted">
+          {submission.runtimeOutput}
+        </pre>
       ) : null}
       {toast ? (
         <motion.div

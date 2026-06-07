@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProblemBySlug } from "@/lib/data";
+import { fetchProblemBySlug } from "@/lib/problems-api";
 import { ProblemDetailView } from "@/features/problems/problem-detail-view";
 
 export default async function Page({
@@ -8,7 +8,7 @@ export default async function Page({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const problem = getProblemBySlug(slug);
+  const problem = await fetchProblemBySlug(slug).catch(() => null);
 
   if (!problem) {
     notFound();

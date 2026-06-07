@@ -9,7 +9,6 @@
     "paths": {
       "dotenv": ["../backend/node_modules/dotenv"],
       "ioredis": ["../backend/node_modules/ioredis"],
-      "pg": ["../backend/node_modules/pg"],
       "@prisma/adapter-pg": ["../backend/node_modules/@prisma/adapter-pg"]
     },
     "strict": true,
@@ -17,7 +16,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "types": ["node"],
-    "typeRoots": ["../backend/node_modules/@types"]
+    "typeRoots": ["./node_modules/@types", "../backend/node_modules/@types"]
   },
   "include": [
     "src/**/*",

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { getAuthToken } from "@/lib/auth-session";
+import { submissionStatusLabels } from "@/lib/submission-status";
 import { useAuthStore } from "@/store/authStore";
 import { useSocketStore } from "@/store/socketStore";
 import { useSubmissionStore } from "@/store/submission.store";
@@ -67,7 +68,15 @@ export function SocketProvider({
     socket.on("connect", connect);
     socket.on("disconnect", disconnect);
     socket.on("submission_result", ({ submission }) => {
-      useSubmissionStore.getState().setSubmission(submission);
+      const submissionStore = useSubmissionStore.getState();
+
+      submissionStore.setSubmission(submission);
+      if (submission.status !== "PENDING") {
+        const status = submission.status as keyof typeof submissionStatusLabels;
+        submissionStore.setToast(
+          `${submissionStatusLabels[status]}: ${submission.passedTestCases}/${submission.totalTestCases} tests passed`
+        );
+      }
       emitEvent("submission_result");
     });
 

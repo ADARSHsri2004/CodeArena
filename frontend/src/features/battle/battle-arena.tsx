@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { AlertTriangle, Radar, TimerReset } from "lucide-react";
 import { CodeEditorWrapper } from "@/components/code-editor-wrapper";
+import { cppStarterTemplate } from "@/lib/cpp-template";
 import { OpponentStatusCard } from "@/components/opponent-status-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,7 +57,8 @@ export function BattleArena({ match }: { match: BattleMatch }) {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <CodeEditorWrapper
             compact
-            initialValue={"export function solve(input: unknown) {\n  // Race your opponent here\n  return input;\n}\n"}
+            problemId={match.problem.id}
+            initialValue={cppStarterTemplate}
           />
         </motion.div>
 

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Difficulty } from "@/types";
 
-type ProblemSort = "title" | "acceptance" | "difficulty";
+type ProblemSort = "title" | "rating" | "difficulty";
 
 type ProblemState = {
   query: string;

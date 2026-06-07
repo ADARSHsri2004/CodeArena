@@ -1,6 +1,6 @@
 import { prisma } from "../../config/prisma";
-import { SubmissionStatus } from "../../generated/prisma/enums";
-import type { Submission } from "../../generated/prisma/client";
+import { SubmissionStatus } from "../../generated/prisma2/enums";
+import type { Submission } from "../../generated/prisma2/client";
 import type { CreateSubmissionBody } from "./submission.validation";
 import { scheduleSubmissionProcessing } from "./submission.processor";
 
@@ -44,7 +44,17 @@ export const createSubmission = async (
     },
   });
 
-  scheduleSubmissionProcessing(submission.id);
+  try {
+    await scheduleSubmissionProcessing(submission.id);
+  } catch {
+    await prisma.submission.delete({
+      where: {
+        id: submission.id,
+      },
+    });
+
+    throw new Error("Failed to queue submission for judging");
+  }
 
   return submission;
 };

@@ -4,9 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { ProblemsBrowser } from "@/features/problems/problems-browser";
 import { MatchCard } from "@/components/match-card";
 import { getFeaturedStats } from "@/lib/data";
+import { fetchProblems } from "@/lib/problems-api";
 
-export default function Page() {
+export default async function Page() {
   const stats = getFeaturedStats();
+  const problems = await fetchProblems();
 
   return (
     <div className="space-y-8">
@@ -47,7 +49,7 @@ export default function Page() {
           <MatchCard title="Live battle window" subtitle="The arena is primed for the next rank push." />
         </div>
         <div>
-          <ProblemsBrowser />
+          <ProblemsBrowser problems={problems} />
         </div>
       </section>
       <div className="flex justify-end">

@@ -45,6 +45,13 @@ export const createSubmissionHandler = async (
       });
     }
 
+    if (error.message === "Failed to queue submission for judging") {
+      return res.status(503).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: "Internal server error",

@@ -24,7 +24,9 @@ export type SubmissionStatus =
   | "ACCEPTED"
   | "WRONG_ANSWER"
   | "TIME_LIMIT_EXCEEDED"
-  | "RUNTIME_ERROR";
+  | "MEMORY_LIMIT_EXCEEDED"
+  | "RUNTIME_ERROR"
+  | "COMPILATION_ERROR";
 
 export type Submission = {
   id: string;
@@ -33,6 +35,14 @@ export type Submission = {
   language: SubmissionLanguage;
   code: string;
   status: SubmissionStatus;
+  compilerOutput: string | null;
+  runtimeOutput: string | null;
+  passedTestCases: number;
+  totalTestCases: number;
+  executionTimeMs: number | null;
+  memoryUsedKb: number | null;
+  failureTestCaseIndex: number | null;
+  judgedAt: string | null;
   createdAt: string;
 };
 

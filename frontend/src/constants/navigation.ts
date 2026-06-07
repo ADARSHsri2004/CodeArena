@@ -28,9 +28,9 @@ export const problems: Problem[] = [
       "Given an array of integers and a target, return the indices of the two numbers that add up to the target. Solve it in the fewest possible passes.",
     examples: [
       {
-        input: "[2,7,11,15], target = 9",
-        output: "[0,1]",
-        explanation: "2 + 7 = 9, so the answer is the first two indices.",
+        input: "4\n2 7 11 15\n9",
+        output: "0 1",
+        explanation: "2 + 7 = 9, so the answer is indices 0 and 1.",
       },
     ],
     constraints: ["Exactly one valid answer exists.", "Do not reuse the same element twice."],
@@ -47,7 +47,7 @@ export const problems: Problem[] = [
       "Check whether a string of brackets is valid. A string is valid if every opening bracket is matched by the correct closing bracket in the correct order.",
     examples: [
       {
-        input: "\"()[]{}\"",
+        input: "()[]{}",
         output: "true",
         explanation: "All brackets are paired and nested correctly.",
       },
@@ -66,7 +66,7 @@ export const problems: Problem[] = [
       "Find the minimum number of moves required to reach the goal in a weighted grid with blocked cells and teleport pads.",
     examples: [
       {
-        input: "grid = [[1,0,0],[0,-1,0],[0,0,2]]",
+        input: "3 3\n1 0 0\n0 -1 0\n0 0 2",
         output: "4",
         explanation: "A shortest path around the blocked cell takes four moves.",
       },

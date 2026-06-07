@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  output   = "../src/generated/prisma2"
 }
 
 datasource db {
@@ -50,6 +50,10 @@ model Problem {
 
   hiddenTestCases Json
 
+  timeLimitMs Int @default(1000)
+
+  memoryLimitMb Int @default(256)
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
@@ -61,7 +65,9 @@ enum SubmissionStatus {
   ACCEPTED
   WRONG_ANSWER
   TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
   RUNTIME_ERROR
+  COMPILATION_ERROR
 }
 
 enum Language {
@@ -75,6 +81,14 @@ model Submission {
   language  Language
   code      String
   status    SubmissionStatus
+  compilerOutput String?
+  runtimeOutput String?
+  passedTestCases Int @default(0)
+  totalTestCases Int @default(0)
+  executionTimeMs Int?
+  memoryUsedKb Int?
+  failureTestCaseIndex Int?
+  judgedAt DateTime?
   createdAt DateTime         @default(now())
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)

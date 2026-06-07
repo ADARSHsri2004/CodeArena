@@ -1,5 +1,8 @@
+import { fetchProblems } from "@/lib/problems-api";
 import { ProblemsBrowser } from "@/features/problems/problems-browser";
 
-export default function Page() {
-  return <ProblemsBrowser />;
+export default async function Page() {
+  const problems = await fetchProblems();
+
+  return <ProblemsBrowser problems={problems} />;
 }
