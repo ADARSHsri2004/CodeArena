@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Play, Send, WandSparkles } from "lucide-react";
+import { submissionStatusLabels } from "@/lib/submission-status";
 import { useSubmissionStore } from "@/store/submission.store";
 import type { SubmissionLanguage } from "@/types";
 
@@ -33,10 +33,10 @@ export function CodeEditorWrapper({
     isSubmitting,
     error,
     toast,
+    submission,
     clearToast,
     clearError,
   } = useSubmissionStore();
-
   const options = useMemo(
     () => ({
       minimap: { enabled: false },
@@ -113,7 +113,11 @@ export function CodeEditorWrapper({
       <Separator />
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
         <div className="text-xs text-muted">
-          {compact ? "Compact battle mode active." : "Production editor with Monaco, hotkeys, and live run feedback."}
+          {submission
+            ? `Status: ${submissionStatusLabels[submission.status]}`
+            : compact
+              ? "Compact battle mode active."
+              : "Production editor with Monaco, hotkeys, and live run feedback."}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">

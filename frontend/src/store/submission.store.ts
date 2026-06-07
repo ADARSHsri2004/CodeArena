@@ -13,6 +13,7 @@ type SubmissionState = {
   isSubmitting: boolean;
   error: string | null;
   toast: string | null;
+  setSubmission: (submission: Submission | null) => void;
   submitSubmission: (
     payload: CreateSubmissionPayload
   ) => Promise<Submission>;
@@ -29,6 +30,7 @@ export const useSubmissionStore = create<SubmissionState>((set) => ({
   isSubmitting: false,
   error: null,
   toast: null,
+  setSubmission: (submission) => set({ submission }),
   submitSubmission: async (payload) => {
     set({
       isSubmitting: true,

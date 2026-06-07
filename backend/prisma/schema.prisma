@@ -24,23 +24,35 @@ enum Difficulty {
 }
 
 model Problem {
-  id String @id @default(uuid())
+  id String @id
 
   title String
 
   slug String @unique
 
-  difficulty Difficulty
+  difficulty String
+
+  rating Int
+
+  tags Json
 
   statement String
+
+  inputFormat String
+
+  outputFormat String
 
   examples Json
 
   constraints Json
 
+  publicTestCases Json
+
+  hiddenTestCases Json
+
   createdAt DateTime @default(now())
 
-  updatedAt   DateTime     @updatedAt
+  updatedAt DateTime @updatedAt
   submissions Submission[]
 }
 

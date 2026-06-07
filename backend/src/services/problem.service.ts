@@ -2,12 +2,8 @@ import { prisma } from "../config/prisma";
 
 export const getAllProblems = async () => {
   return prisma.problem.findMany({
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      difficulty: true,
-      createdAt: true,
+    orderBy: {
+      id: "asc",
     },
   });
 };

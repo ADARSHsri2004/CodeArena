@@ -1,137 +1,94 @@
-import {prisma} from "../src/config/prisma"
+import { readFile } from "fs/promises";
+import path from "path";
+
+import { prisma } from "../src/config/prisma";
+
+type ProblemFixture = {
+  id: string;
+  title: string;
+  difficulty: string;
+  rating: number;
+  tags: string[];
+  statement: string;
+  inputFormat: string;
+  outputFormat: string;
+  constraints: string[];
+  examples: Array<{
+    input: string;
+    output: string;
+    explanation?: string;
+  }>;
+  publicTestCases: Array<{
+    input: string;
+    output: string;
+  }>;
+  hiddenTestCases: Array<{
+    input: string;
+    output: string;
+  }>;
+};
+
+const problemsFilePath = path.resolve(
+  process.cwd(),
+  "data/problems.json"
+);
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 async function main() {
-  await prisma.problem.createMany({
-    skipDuplicates: true,
-    data: [
-      {
-        id: "11111111-1111-4111-8111-111111111111",
-        title: "Two Sum Sprint",
+  const raw = await readFile(problemsFilePath, "utf8");
+  const problems = JSON.parse(raw) as ProblemFixture[];
 
-        slug: "two-sum-sprint",
-
-        difficulty: "EASY",
-
-        statement:
-          "Given an array of integers and a target, return the indices of the two numbers that add up to the target. Solve it in the fewest possible passes.",
-
-        examples: [
-          {
-            input:
-              "[2,7,11,15], target = 9",
-
-            output: "[0,1]",
-          },
-        ],
-
-        constraints: {
-          n: "Exactly one valid answer exists.",
+  await Promise.all(
+    problems.map((problem) =>
+      prisma.problem.upsert({
+        where: {
+          id: problem.id,
         },
-      },
-
-      {
-        id: "22222222-2222-4222-8222-222222222222",
-        title: "Balanced Brackets Duel",
-
-        slug: "balanced-brackets-duel",
-
-        difficulty: "MEDIUM",
-
-        statement:
-          "Check whether a string of brackets is valid. A string is valid if every opening bracket is matched by the correct closing bracket in the correct order.",
-
-        examples: [
-          {
-            input:
-              "\"()[]{}\"",
-
-            output: "true",
-          },
-        ],
-
-        constraints: {
-          n: "Input length can be up to 100,000 characters.",
+        create: {
+          id: problem.id,
+          title: problem.title,
+          slug: slugify(problem.title),
+          difficulty: problem.difficulty,
+          rating: problem.rating,
+          tags: problem.tags,
+          statement: problem.statement,
+          inputFormat: problem.inputFormat,
+          outputFormat: problem.outputFormat,
+          examples: problem.examples,
+          constraints: problem.constraints,
+          publicTestCases: problem.publicTestCases,
+          hiddenTestCases: problem.hiddenTestCases,
         },
-      },
-
-      {
-        id: "33333333-3333-4333-8333-333333333333",
-        title: "Battlefield Pathfinding",
-
-        slug: "battlefield-pathfinding",
-
-        difficulty: "HARD",
-
-        statement:
-          "Find the minimum number of moves required to reach the goal in a weighted grid with blocked cells and teleport pads.",
-
-        examples: [
-          {
-            input:
-              "grid = [[1,0,0],[0,-1,0],[0,0,2]]",
-
-            output: "4",
-          },
-        ],
-
-        constraints: {
-          n: "Teleport pads are optional.",
+        update: {
+          title: problem.title,
+          slug: slugify(problem.title),
+          difficulty: problem.difficulty,
+          rating: problem.rating,
+          tags: problem.tags,
+          statement: problem.statement,
+          inputFormat: problem.inputFormat,
+          outputFormat: problem.outputFormat,
+          examples: problem.examples,
+          constraints: problem.constraints,
+          publicTestCases: problem.publicTestCases,
+          hiddenTestCases: problem.hiddenTestCases,
         },
-      },
-
-      {
-        title: "Two Sum",
-
-        slug: "two-sum",
-
-        difficulty: "EASY",
-
-        statement:
-          "Given an array nums and target...",
-
-        examples: [
-          {
-            input:
-              "nums=[2,7,11,15], target=9",
-
-            output: "[0,1]",
-          },
-        ],
-
-        constraints: {
-          n: "2 <= n <= 10000",
-        },
-      },
-
-      {
-        title:
-          "Longest Substring Without Repeating Characters",
-
-        slug:
-          "longest-substring",
-
-        difficulty: "MEDIUM",
-
-        statement:
-          "Given a string s...",
-
-        examples: [
-          {
-            input: "abcabcbb",
-
-            output: "3",
-          },
-        ],
-
-        constraints: {
-          n: "1 <= n <= 50000",
-        },
-      },
-    ],
-  });
+      }),
+    ),
+  );
 }
 
 main()
   .then(() => {
-    console.log("seeded");
+    console.log("seeded problems from data/problems.json");
   })
-  .catch(console.error);
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

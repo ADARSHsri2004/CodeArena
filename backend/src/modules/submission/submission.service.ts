@@ -2,6 +2,7 @@ import { prisma } from "../../config/prisma";
 import { SubmissionStatus } from "../../generated/prisma/enums";
 import type { Submission } from "../../generated/prisma/client";
 import type { CreateSubmissionBody } from "./submission.validation";
+import { scheduleSubmissionProcessing } from "./submission.processor";
 
 export const createSubmission = async (
   userId: string,
@@ -33,7 +34,7 @@ export const createSubmission = async (
     throw new Error("Problem not found");
   }
 
-  return prisma.submission.create({
+  const submission = await prisma.submission.create({
     data: {
       userId,
       problemId: input.problemId,
@@ -42,6 +43,10 @@ export const createSubmission = async (
       status: SubmissionStatus.PENDING,
     },
   });
+
+  scheduleSubmissionProcessing(submission.id);
+
+  return submission;
 };
 
 export const getSubmissionById = async (

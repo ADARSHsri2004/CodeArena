@@ -1,0 +1,14 @@
+{
+  "name": "worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ../backend/node_modules/ts-node-dev/lib/bin.js --respawn src/worker.ts",
+    "build": "node ../backend/node_modules/typescript/bin/tsc -p tsconfig.json",
+    "start": "node dist/worker/src/worker.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "ioredis": "^5.11.1"
+  }
+}
