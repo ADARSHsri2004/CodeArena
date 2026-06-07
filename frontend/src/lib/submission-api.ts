@@ -5,6 +5,7 @@ export type CreateSubmissionPayload = {
   problemId: string;
   language: SubmissionLanguage;
   code: string;
+  matchId?: string;
 };
 
 type SubmissionResponse = {

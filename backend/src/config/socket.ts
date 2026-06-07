@@ -4,6 +4,7 @@ import { Server } from "socket.io";
 import { JWT_SECRET } from "./jwt";
 import { prisma } from "./prisma";
 import type { Submission } from "../generated/prisma2/client";
+import { handleMatchSubmissionResult } from "../modules/match/match.service";
 
 const FRONTEND_ORIGIN =
   process.env.FRONTEND_URL ?? "http://localhost:3000";
@@ -36,6 +37,11 @@ type ServerEventHandlers = {
   submission_result: (payload: {
     submission: Submission;
   }) => void;
+  match_found: (payload: unknown) => void;
+  match_started: (payload: unknown) => void;
+  match_timer_sync: (payload: unknown) => void;
+  match_progress: (payload: unknown) => void;
+  match_result: (payload: unknown) => void;
 };
 
 type SocketData = {
@@ -43,18 +49,35 @@ type SocketData = {
   userId?: string;
 };
 
-export function createSocketServer(httpServer: HttpServer) {
-  const io = new Server<ClientEventHandlers, ServerEventHandlers, {}, SocketData>(
-    httpServer,
-    {
-      cors: {
-        origin: FRONTEND_ORIGIN,
-        credentials: true,
-      },
-    }
-  );
+let ioInstance: Server<
+  ClientEventHandlers,
+  ServerEventHandlers,
+  {},
+  SocketData
+> | null = null;
 
-  io.use((socket, next) => {
+export function getIo() {
+  if (!ioInstance) {
+    throw new Error("Socket server has not been initialized");
+  }
+
+  return ioInstance;
+}
+
+export function createSocketServer(httpServer: HttpServer) {
+  ioInstance = new Server<
+    ClientEventHandlers,
+    ServerEventHandlers,
+    {},
+    SocketData
+  >(httpServer, {
+    cors: {
+      origin: FRONTEND_ORIGIN,
+      credentials: true,
+    },
+  });
+
+  ioInstance.use((socket, next) => {
     const auth = socket.handshake.auth as UserAuthPayload;
 
     if (auth.workerSecret && auth.workerSecret === WORKER_SECRET) {
@@ -81,7 +104,7 @@ export function createSocketServer(httpServer: HttpServer) {
     }
   });
 
-  io.on("connection", (socket) => {
+  ioInstance.on("connection", (socket) => {
     if (socket.data.role === "user" && socket.data.userId) {
       socket.join(`user:${socket.data.userId}`);
     }
@@ -98,12 +121,14 @@ export function createSocketServer(httpServer: HttpServer) {
           return;
         }
 
-        io.to(`user:${submission.userId}`).emit("submission_result", {
+        ioInstance!.to(`user:${submission.userId}`).emit("submission_result", {
           submission,
         });
+
+        await handleMatchSubmissionResult(submission);
       });
     }
   });
 
-  return io;
+  return ioInstance;
 }

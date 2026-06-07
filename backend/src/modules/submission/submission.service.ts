@@ -3,6 +3,7 @@ import { SubmissionStatus } from "../../generated/prisma2/enums";
 import type { Submission } from "../../generated/prisma2/client";
 import type { CreateSubmissionBody } from "./submission.validation";
 import { scheduleSubmissionProcessing } from "./submission.processor";
+import { validateMatchSubmission } from "../match/match.service";
 
 export const createSubmission = async (
   userId: string,
@@ -34,10 +35,19 @@ export const createSubmission = async (
     throw new Error("Problem not found");
   }
 
+  if (input.matchId) {
+    await validateMatchSubmission(
+      userId,
+      input.matchId,
+      input.problemId
+    );
+  }
+
   const submission = await prisma.submission.create({
     data: {
       userId,
       problemId: input.problemId,
+      matchId: input.matchId,
       language: input.language,
       code: input.code,
       status: SubmissionStatus.PENDING,

@@ -1,6 +1,4 @@
-import { notFound } from "next/navigation";
-import { getBattleMatch } from "@/lib/data";
-import { BattleArena } from "@/features/battle/battle-arena";
+import { BattleArenaClient } from "@/features/battle/battle-arena-client";
 
 export default async function Page({
   params,
@@ -8,15 +6,10 @@ export default async function Page({
   params: Promise<{ matchId: string }>;
 }) {
   const { matchId } = await params;
-  if (!matchId) {
-    notFound();
-  }
-
-  const match = getBattleMatch(matchId);
 
   return (
     <main className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 lg:px-8">
-      <BattleArena match={match} />
+      <BattleArenaClient matchId={matchId} />
     </main>
   );
 }

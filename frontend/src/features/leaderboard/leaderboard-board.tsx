@@ -1,30 +1,67 @@
 "use client";
 
-import { useMemo } from "react";
-import { Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { LoaderCircle, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useLeaderboardStore } from "@/store/leaderboardStore";
-import { getLeaderboard } from "@/lib/data";
+import { fetchLeaderboard } from "@/lib/match-api";
 import { formatNumber } from "@/lib/utils";
 import { EmptyState } from "@/components/empty-state";
+import type { LeaderboardEntry } from "@/types";
 
 export function LeaderboardBoard() {
   const { query, page, pageSize, setQuery, setPage } = useLeaderboardStore();
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetchLeaderboard()
+      .then(setEntries)
+      .catch((fetchError) => {
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Unable to load the leaderboard."
+        );
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
-    return getLeaderboard().filter((entry) => entry.username.toLowerCase().includes(query.toLowerCase()));
-  }, [query]);
+    return entries.filter((entry) =>
+      entry.username.toLowerCase().includes(query.toLowerCase())
+    );
+  }, [entries, query]);
 
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[240px] items-center justify-center text-muted">
+        <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
+        Loading leaderboard...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        title="Unable to load leaderboard"
+        description={error}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 lg:grid-cols-3">
-        {getLeaderboard().slice(0, 3).map((entry) => (
+        {entries.slice(0, 3).map((entry) => (
           <Card key={entry.username} className="border-border/70 bg-surface/85">
             <CardContent className="space-y-3">
               <Badge variant="ranking">#{entry.rank}</Badge>

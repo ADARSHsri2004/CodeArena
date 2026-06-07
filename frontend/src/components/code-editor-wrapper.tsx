@@ -20,10 +20,12 @@ const languageOptions = [
 export function CodeEditorWrapper({
   initialValue,
   problemId,
+  matchId,
   compact = false,
 }: {
   initialValue: string;
   problemId?: string;
+  matchId?: string;
   compact?: boolean;
 }) {
   const [language] = useState<SubmissionLanguage>("CPP");
@@ -80,6 +82,7 @@ export function CodeEditorWrapper({
         problemId,
         language,
         code: value,
+        ...(matchId ? { matchId } : {}),
       });
     } catch {
       // The store already captures the error message for the UI.

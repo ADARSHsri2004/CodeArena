@@ -32,6 +32,7 @@ export type Submission = {
   id: string;
   userId: string;
   problemId: string;
+  matchId?: string | null;
   language: SubmissionLanguage;
   code: string;
   status: SubmissionStatus;

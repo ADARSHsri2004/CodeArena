@@ -8,6 +8,7 @@ import userRoutes from "./routes/user.routes"
 import authRoutes from "./routes/auth.routes"
 import problemRoutes from "./routes/poblems.routes"
 import submissionRoutes from "./modules/submission/submission.routes"
+import matchRoutes from "./modules/match/match.routes"
 const app = express();
 
 app.use(cors());
@@ -24,6 +25,7 @@ app.use(
   "/api/submissions",
   submissionRoutes
 );
+app.use("/api", matchRoutes);
 app.get("/", (_, res) => {
   res.json({
     success: true,

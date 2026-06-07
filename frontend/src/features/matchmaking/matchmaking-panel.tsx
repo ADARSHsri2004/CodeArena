@@ -1,17 +1,63 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Play, Swords, Users } from "lucide-react";
+import { LoaderCircle, Play, Swords, Users, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/progress";
 import { useMatchmakingStore } from "@/store/matchmakingStore";
 import { DifficultyBadge } from "@/components/difficulty-badge";
+import { Select } from "@/components/ui/select";
+import type { Difficulty } from "@/types";
+
+const difficultyOptions = [
+  { value: "easy", label: "Easy" },
+  { value: "medium", label: "Medium" },
+  { value: "hard", label: "Hard" },
+];
 
 export function MatchmakingPanel() {
-  const { status, preferredDifficulty, estimatedWaitTime, rating, queueCount, startSearch, findMatch, reset } =
-    useMatchmakingStore();
+  const router = useRouter();
+  const {
+    status,
+    preferredDifficulty,
+    estimatedWaitTime,
+    rating,
+    queueCount,
+    queuePosition,
+    matchId,
+    opponent,
+    error,
+    isLoading,
+    setDifficulty,
+    refreshStatus,
+    startSearch,
+    cancelSearch,
+    reset,
+  } = useMatchmakingStore();
+
+  useEffect(() => {
+    void refreshStatus();
+  }, [refreshStatus]);
+
+  useEffect(() => {
+    if (status === "found" && matchId) {
+      const timeout = window.setTimeout(() => {
+        router.push(`/battle/${matchId}`);
+      }, 1200);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [status, matchId, router]);
+
+  const searchProgress =
+    queuePosition && queueCount
+      ? Math.min(95, Math.round((1 - queuePosition / queueCount) * 100))
+      : status === "searching"
+        ? 35
+        : 0;
 
   return (
     <motion.div layout className="mx-auto max-w-3xl">
@@ -44,10 +90,24 @@ export function MatchmakingPanel() {
           </div>
 
           <div className="rounded-3xl border border-border bg-surface/80 p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-sm text-muted">Preferred difficulty</p>
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-3">
+                  <Select
+                    value={preferredDifficulty}
+                    onChange={(event) =>
+                      setDifficulty(event.target.value as Difficulty)
+                    }
+                    disabled={status === "searching" || isLoading}
+                    className="w-36"
+                  >
+                    {difficultyOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </Select>
                   <DifficultyBadge difficulty={preferredDifficulty} />
                 </div>
               </div>
@@ -56,29 +116,53 @@ export function MatchmakingPanel() {
             {status === "searching" ? (
               <div className="mt-6 space-y-3">
                 <div className="flex items-center justify-between text-sm text-muted">
-                  <span>Searching for balanced opponent</span>
+                  <span>
+                    Searching for balanced opponent
+                    {queuePosition ? ` · position ${queuePosition}` : ""}
+                  </span>
                   <span>Live</span>
                 </div>
-                <Progress value={64} />
+                <Progress value={searchProgress} />
               </div>
             ) : null}
-            {status === "found" ? (
+            {status === "found" && opponent ? (
               <div className="mt-6 rounded-2xl border border-success/30 bg-success/10 p-4 text-sm text-white">
-                Match found. Prepare for launch.
+                Match found against {opponent.username} ({opponent.rating} Elo). Launching arena...
               </div>
             ) : null}
           </div>
 
+          {error ? (
+            <div className="rounded-2xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-white">
+              {error}
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-3">
-            <Button onClick={startSearch}>
+            {status === "idle" || status === "found" ? (
+              <Button onClick={startSearch} disabled={isLoading}>
+                {isLoading ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Swords className="h-4 w-4" />
+                )}
+                Find Match
+              </Button>
+            ) : (
+              <Button onClick={cancelSearch} disabled={isLoading} variant="danger">
+                {isLoading ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <X className="h-4 w-4" />
+                )}
+                Cancel Search
+              </Button>
+            )}
+            <Button variant="outline" onClick={refreshStatus} disabled={isLoading}>
               <Play className="h-4 w-4" />
-              Start Searching
+              Refresh Status
             </Button>
-            <Button variant="outline" onClick={findMatch}>
-              <Swords className="h-4 w-4" />
-              Force Match State
-            </Button>
-            <Button variant="ghost" onClick={reset}>
+            <Button variant="ghost" onClick={reset} disabled={isLoading}>
               Reset
             </Button>
           </div>
