@@ -4,6 +4,13 @@ import { prisma } from "../config/prisma";
 import { JWT_EXPIRES_IN, JWT_SECRET } from "../config/jwt";
 import { PublicUser } from "../types/auth.types";
 
+function logAuthServiceStep(
+  step: string,
+  details: Record<string, unknown>
+) {
+  console.error(`[auth-service] ${step}`, details);
+}
+
 const toPublicUser = (
   user: {
     id: string;
@@ -28,20 +35,40 @@ export const registerUser = async (
   const normalizedUsername = username.trim();
   const normalizedEmail = email.trim().toLowerCase();
 
-  const existingUser = await prisma.user.findFirst({
-    where: {
-      OR: [
-        { email: normalizedEmail },
-        { username: normalizedUsername }
-      ]
-    }
-  });
+  let existingUser;
+  try {
+    existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: normalizedEmail },
+          { username: normalizedUsername }
+        ]
+      }
+    });
+  } catch (error) {
+    logAuthServiceStep("register.findFirst failed", {
+      username: normalizedUsername,
+      email: normalizedEmail,
+      error: error instanceof Error ? error.message : error
+    });
+    throw error;
+  }
 
   if (existingUser) {
     throw new Error("User already exists");
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  let hashedPassword: string;
+  try {
+    hashedPassword = await bcrypt.hash(password, 10);
+  } catch (error) {
+    logAuthServiceStep("register.hash failed", {
+      username: normalizedUsername,
+      email: normalizedEmail,
+      error: error instanceof Error ? error.message : error
+    });
+    throw error;
+  }
 
   try {
     const user = await prisma.user.create({
@@ -58,6 +85,13 @@ export const registerUser = async (
       throw new Error("User already exists");
     }
 
+    logAuthServiceStep("register.create failed", {
+      username: normalizedUsername,
+      email: normalizedEmail,
+      error: error instanceof Error ? error.message : error,
+      code: error?.code
+    });
+
     throw error;
   }
 };
@@ -68,33 +102,62 @@ export const loginUser = async (
 ) => {
   const normalizedEmail = email.trim().toLowerCase();
 
-  const user = await prisma.user.findUnique({
-    where: { email: normalizedEmail }
-  });
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { email: normalizedEmail }
+    });
+  } catch (error) {
+    logAuthServiceStep("login.findUnique failed", {
+      email: normalizedEmail,
+      error: error instanceof Error ? error.message : error
+    });
+    throw error;
+  }
 
   if (!user) {
     throw new Error("Invalid credentials");
   }
 
-  const isMatch = await bcrypt.compare(
-    password,
-    user.password
-  );
+  let isMatch: boolean;
+  try {
+    isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
+  } catch (error) {
+    logAuthServiceStep("login.compare failed", {
+      email: normalizedEmail,
+      userId: user.id,
+      error: error instanceof Error ? error.message : error
+    });
+    throw error;
+  }
 
   if (!isMatch) {
     throw new Error("Invalid credentials");
   }
 
-  const token = jwt.sign(
-    {
-      id: user.id,
-      email: user.email
-    },
-    JWT_SECRET,
-    {
-      expiresIn: JWT_EXPIRES_IN
-    }
-  );
+  let token: string;
+  try {
+    token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email
+      },
+      JWT_SECRET,
+      {
+        expiresIn: JWT_EXPIRES_IN
+      }
+    );
+  } catch (error) {
+    logAuthServiceStep("login.jwt failed", {
+      email: normalizedEmail,
+      userId: user.id,
+      error: error instanceof Error ? error.message : error
+    });
+    throw error;
+  }
 
   const safeUser = toPublicUser(user);
 

@@ -6,6 +6,24 @@ import {
 import { prisma } from "../config/prisma";
 import { AuthRequest } from "../middleware/auth.middleware";
 
+function logAuthError(
+  action: "register" | "login",
+  error: unknown,
+  context: Record<string, unknown>
+) {
+  console.error(`[auth:${action}] request failed`, {
+    ...context,
+    error:
+      error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : error,
+  });
+}
+
 export const me = async (
   req: AuthRequest,
   res: Response
@@ -64,6 +82,11 @@ export const register = async (
       });
     }
 
+    logAuthError("register", error, {
+      username: req.body?.username,
+      email: req.body?.email
+    });
+
     return res.status(500).json({
       success: false,
       message: "Internal server error"
@@ -95,7 +118,11 @@ export const login = async (
       });
     }
 
-    return res.status(401).json({
+    logAuthError("login", error, {
+      email: req.body?.email
+    });
+
+    return res.status(500).json({
       success: false,
       message: "Internal server error"
     });

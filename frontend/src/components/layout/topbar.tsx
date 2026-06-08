@@ -12,13 +12,15 @@ export function Topbar() {
   return (
     <header className="flex flex-col gap-4 border-b border-border/70 bg-background/60 px-4 py-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between lg:px-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.28em] text-muted">Command center</p>
-        <div className="mt-1 flex items-center gap-3">
-          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Welcome back</h2>
-          <Badge variant="ranking" className="hidden sm:inline-flex">
-            <Flame className="mr-1 h-3 w-3" />
-            live queue
-          </Badge>
+        <div>
+          
+          <div className="mt-1 flex items-center gap-3">
+            <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Welcome back</h2>
+            <Badge variant="ranking" className="hidden sm:inline-flex">
+              <Flame className="mr-1 h-3 w-3" />
+              live queue
+            </Badge>
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-3 self-end sm:self-auto">

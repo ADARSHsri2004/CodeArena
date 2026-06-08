@@ -1,3 +1,4 @@
+"use-client"
 import { notFound } from "next/navigation";
 import { fetchProblemBySlug } from "@/lib/problems-api";
 import { ProblemDetailView } from "@/features/problems/problem-detail-view";
@@ -17,7 +18,7 @@ export default async function Page({
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <main className="mx-auto max-w--auto py-2 sm:px-6 lg:px-8">
       <ProblemDetailView problem={problem} />
     </main>
   );
