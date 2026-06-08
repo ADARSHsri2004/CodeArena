@@ -10,18 +10,18 @@ export function Topbar() {
   const user = useAuthStore((state) => state.user);
 
   return (
-    <header className="flex items-center justify-between border-b border-border/70 bg-background/70 px-4 py-4 backdrop-blur-xl lg:px-6">
+    <header className="flex flex-col gap-4 border-b border-border/70 bg-background/60 px-4 py-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between lg:px-6">
       <div>
         <p className="text-xs uppercase tracking-[0.28em] text-muted">Command center</p>
         <div className="mt-1 flex items-center gap-3">
-          <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
-          <Badge variant="ranking">
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Welcome back</h2>
+          <Badge variant="ranking" className="hidden sm:inline-flex">
             <Flame className="mr-1 h-3 w-3" />
             live queue
           </Badge>
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 self-end sm:self-auto">
         <div className="hidden rounded-2xl border border-border bg-surface px-4 py-2 text-sm text-muted md:flex md:items-center md:gap-2">
           <Trophy className="h-4 w-4 text-warning" />
           Elo {user?.elo ?? 0}

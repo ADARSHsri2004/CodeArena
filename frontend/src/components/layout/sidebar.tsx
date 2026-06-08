@@ -12,7 +12,7 @@ export function Sidebar({ activePath }: { activePath?: string }) {
   const currentPath = activePath ?? pathname;
 
   return (
-    <aside className="hidden min-h-screen w-72 border-r border-border/70 bg-surface/70 px-4 py-6 lg:flex lg:flex-col">
+    <aside className="hidden min-h-[calc(100vh-76px)] w-72 border-r border-border/70 bg-surface/70 px-4 py-6 lg:sticky lg:top-[76px] lg:flex lg:flex-col">
       <Link href="/dashboard" className="flex items-center gap-3 px-3">
         <Image
           src="/logo.png"
