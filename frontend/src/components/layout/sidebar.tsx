@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { dashboardNavigation } from "@/constants/navigation";
@@ -13,9 +14,14 @@ export function Sidebar({ activePath }: { activePath?: string }) {
   return (
     <aside className="hidden min-h-screen w-72 border-r border-border/70 bg-surface/70 px-4 py-6 lg:flex lg:flex-col">
       <Link href="/dashboard" className="flex items-center gap-3 px-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-action to-ranking text-sm font-bold text-white">
-          CA
-        </span>
+        <Image
+          src="/logo.png"
+          alt="CodeArena logo"
+          width={52}
+          height={52}
+          className="h-[52px] w-[52px] object-contain"
+          priority
+        />
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.24em]">
             CodeArena

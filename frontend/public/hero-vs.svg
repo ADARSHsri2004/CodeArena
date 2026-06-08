@@ -1,0 +1,86 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="512" y1="0" x2="512" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#05070C"/>
+      <stop offset="1" stop-color="#0B1020"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="165" y1="334" x2="430" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67B7FF"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="red" x1="859" y1="334" x2="594" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF8A4C"/>
+      <stop offset="1" stop-color="#DC2626"/>
+    </linearGradient>
+    <linearGradient id="vs" x1="385" y1="298" x2="639" y2="540" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7DD3FC"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+    <filter id="glow" x="0" y="0" width="1024" height="1024" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="44" fill="url(#bg)"/>
+  <ellipse cx="512" cy="858" rx="360" ry="82" fill="#0D1427"/>
+  <ellipse cx="512" cy="862" rx="258" ry="52" fill="#0A0F1A"/>
+
+  <g filter="url(#glow)">
+    <path d="M287 520C242 482 215 438 194 377L223 358C262 423 303 467 355 493L287 520Z" fill="#2E6BFF" fill-opacity="0.35"/>
+    <path d="M737 520C782 482 809 438 830 377L801 358C762 423 721 467 669 493L737 520Z" fill="#FF6A2A" fill-opacity="0.35"/>
+  </g>
+
+  <g>
+    <path d="M256 482C233 394 263 322 340 286C394 260 470 264 513 294C456 315 408 358 377 413C353 454 319 474 256 482Z" fill="#111827" stroke="#20304F" stroke-width="4"/>
+    <path d="M768 482C791 394 761 322 684 286C630 260 554 264 511 294C568 315 616 358 647 413C671 454 705 474 768 482Z" fill="#111827" stroke="#3B1D18" stroke-width="4"/>
+  </g>
+
+  <g>
+    <rect x="188" y="426" width="210" height="172" rx="18" fill="#0B1220" stroke="#2C4A78" stroke-width="5"/>
+    <rect x="626" y="426" width="210" height="172" rx="18" fill="#0B1220" stroke="#7A3418" stroke-width="5"/>
+    <rect x="218" y="455" width="150" height="8" rx="4" fill="#2B6CB0"/>
+    <rect x="218" y="479" width="122" height="8" rx="4" fill="#2B6CB0" fill-opacity="0.9"/>
+    <rect x="218" y="503" width="168" height="8" rx="4" fill="#2B6CB0" fill-opacity="0.8"/>
+    <rect x="656" y="455" width="150" height="8" rx="4" fill="#B45309"/>
+    <rect x="656" y="479" width="122" height="8" rx="4" fill="#B45309" fill-opacity="0.9"/>
+    <rect x="656" y="503" width="168" height="8" rx="4" fill="#B45309" fill-opacity="0.8"/>
+  </g>
+
+  <g>
+    <path d="M265 614C273 561 294 527 332 509C384 485 448 495 485 527L455 676H298L265 614Z" fill="#0C1730" stroke="#2C4A78" stroke-width="5"/>
+    <path d="M759 614C751 561 730 527 692 509C640 485 576 495 539 527L569 676H726L759 614Z" fill="#1A0C0C" stroke="#7A3418" stroke-width="5"/>
+    <path d="M332 507C350 553 371 590 401 610L380 676H298L265 614C273 561 294 527 332 507Z" fill="url(#blue)" fill-opacity="0.22"/>
+    <path d="M692 507C674 553 653 590 623 610L644 676H726L759 614C751 561 730 527 692 507Z" fill="url(#red)" fill-opacity="0.22"/>
+  </g>
+
+  <g>
+    <circle cx="329" cy="565" r="33" fill="#09121F" stroke="#2F5EA8" stroke-width="5"/>
+    <circle cx="695" cy="565" r="33" fill="#1C0E0B" stroke="#B45309" stroke-width="5"/>
+    <path d="M299 529L287 507L315 509L329 521L343 509L371 507L359 529L329 543L299 529Z" fill="#111827"/>
+    <path d="M665 529L653 507L681 509L695 521L709 509L737 507L725 529L695 543L665 529Z" fill="#111827"/>
+  </g>
+
+  <g>
+    <rect x="436" y="548" width="152" height="126" rx="14" fill="#0A0F1A" stroke="#3A475F" stroke-width="5"/>
+    <rect x="462" y="586" width="100" height="12" rx="6" fill="#E5E7EB"/>
+    <rect x="472" y="626" width="80" height="12" rx="6" fill="#E5E7EB"/>
+    <text x="512" y="604" text-anchor="middle" font-family="Arial, sans-serif" font-size="82" font-weight="700" fill="#F8FAFC">&lt;/&gt;</text>
+    <text x="512" y="672" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#F8FAFC">03:25</text>
+  </g>
+
+  <g filter="url(#glow)">
+    <path d="M512 244L530 288L576 292L542 320L553 365L512 341L471 365L482 320L448 292L494 288L512 244Z" fill="#FDE68A"/>
+    <path d="M512 708L530 748L576 752L542 780L553 825L512 801L471 825L482 780L448 752L494 748L512 708Z" fill="#A78BFA" fill-opacity="0.7"/>
+  </g>
+
+  <g>
+    <rect x="210" y="748" width="120" height="64" rx="18" fill="#0B1220" stroke="#2C4A78" stroke-width="4"/>
+    <rect x="694" y="748" width="120" height="64" rx="18" fill="#0B1220" stroke="#7A3418" stroke-width="4"/>
+    <text x="270" y="790" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#93C5FD">&lt;/&gt;</text>
+    <text x="754" y="790" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#FDBA74">{ }</text>
+  </g>
+</svg>

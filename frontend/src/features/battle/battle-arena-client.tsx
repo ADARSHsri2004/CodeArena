@@ -29,7 +29,7 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
     syncTimer,
     clear,
   } = useMatchStore();
-  const [timerLabel, setTimerLabel] = useState("15:00");
+  const [timerLabel, setTimerLabel] = useState(() => getRemainingLabel());
   const [isForfeiting, setIsForfeiting] = useState(false);
 
   useEffect(() => {
@@ -42,7 +42,6 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
     const interval = window.setInterval(() => {
       setTimerLabel(getRemainingLabel());
     }, 1000);
-    setTimerLabel(getRemainingLabel());
     return () => window.clearInterval(interval);
   }, [getRemainingLabel, match?.id]);
 
@@ -170,7 +169,7 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
                   : "Draw"}
             </h2>
             <p>
-              Rating change: {formatElo(selfResult.eloChange)} · Final rating: {selfResult.eloAfter}
+              Rating change: {formatElo(selfResult.eloChange)} - Final rating: {selfResult.eloAfter}
             </p>
             <p className="text-sm text-muted">
               Passed test cases: {selfResult.passedTestCases}

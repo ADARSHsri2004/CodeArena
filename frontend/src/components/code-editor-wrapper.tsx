@@ -55,10 +55,6 @@ export function CodeEditorWrapper({
   );
 
   useEffect(() => {
-    setValue(initialValue);
-  }, [initialValue]);
-
-  useEffect(() => {
     if (!toast) {
       return;
     }

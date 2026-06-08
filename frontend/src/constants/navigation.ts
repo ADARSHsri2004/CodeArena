@@ -1,7 +1,6 @@
 import type { Difficulty, LeaderboardEntry, MatchRecord, Problem } from "@/types";
 
 export const publicNavigation = [
-  { href: "/", label: "Home" },
   { href: "/problems", label: "Problems" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/about", label: "About" },
