@@ -13,20 +13,9 @@ type AuthState = {
   signOut: () => void;
 };
 
-const demoUser: AuthUser = {
-  id: "u-1",
-  username: "alphaSigma",
-  email: "alpha@codearena.dev",
-  avatarUrl: "https://api.dicebear.com/9.x/bottts/svg?seed=alphaSigma",
-  elo: 2368,
-  peakElo: 2415,
-  matchesPlayed: 248,
-  winRate: 68,
-};
-
 export const useAuthStore = create<AuthState>((set) => ({
-  user: demoUser,
-  isAuthenticated: true,
+  user: null,
+  isAuthenticated: false,
   isLoading: false,
   setUser: (user) => set({ user, isAuthenticated: Boolean(user) }),
   setLoading: (value) => set({ isLoading: value }),
@@ -34,6 +23,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const token = getAuthToken();
 
     if (!token) {
+      set({ user: null, isAuthenticated: false });
       return;
     }
 

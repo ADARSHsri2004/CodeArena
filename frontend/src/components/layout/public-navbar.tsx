@@ -1,9 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import { publicNavigation } from "@/constants/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Zap } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import { UserAvatarMenu } from "@/components/user-avatar-menu";
 
 export function PublicNavbar() {
+  const user = useAuthStore((state) => state.user);
+
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -32,22 +38,34 @@ export function PublicNavbar() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="hidden h-11 items-center justify-center rounded-xl px-4 text-sm font-medium text-muted transition hover:bg-white/5 hover:text-white sm:inline-flex"
-          >
-            <Zap className="h-4 w-4" />
-            Login
-          </Link>
-          <Link
-            href="/register"
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-action px-4 text-sm font-medium text-white transition hover:bg-blue-500"
-          >
-            <Zap className="h-4 w-4" />
-            Sign Up
-          </Link>
-        </div>
+        {user ? (
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="hidden h-11 items-center justify-center rounded-xl px-4 text-sm font-medium text-muted transition hover:bg-white/5 hover:text-white sm:inline-flex"
+            >
+              Dashboard
+            </Link>
+            <UserAvatarMenu />
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="hidden h-11 items-center justify-center rounded-xl px-4 text-sm font-medium text-muted transition hover:bg-white/5 hover:text-white sm:inline-flex"
+            >
+              <Zap className="h-4 w-4" />
+              Login
+            </Link>
+            <Link
+              href="/register"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-action px-4 text-sm font-medium text-white transition hover:bg-blue-500"
+            >
+              <Zap className="h-4 w-4" />
+              Sign Up
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );
