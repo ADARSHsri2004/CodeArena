@@ -11,8 +11,10 @@ import {
 } from "./match.service";
 import {
   estimateWaitSeconds,
+  getActiveQueuePosition,
   getQueueCount,
-  getQueuePosition,
+  getOnlineUserCount,
+  getSearchingUserCount,
   isUserInQueue,
   joinMatchmakingQueue,
   leaveMatchmakingQueue,
@@ -61,12 +63,16 @@ export const joinQueueHandler = async (
 
     if (await isUserInQueue(user.id)) {
       const queueCount = await getQueueCount();
-      const position = await getQueuePosition(user.id);
+      const position = await getActiveQueuePosition(user.id);
+      const onlineCount = await getOnlineUserCount();
+      const searchingCount = await getSearchingUserCount();
       return res.json({
         success: true,
         queue: {
           position,
           queueCount,
+          onlineCount,
+          searchingCount,
           estimatedWaitSeconds: estimateWaitSeconds(queueCount),
         },
       });
@@ -80,13 +86,17 @@ export const joinQueueHandler = async (
     );
 
     const queueCount = await getQueueCount();
-    const position = await getQueuePosition(user.id);
+    const position = await getActiveQueuePosition(user.id);
+    const onlineCount = await getOnlineUserCount();
+    const searchingCount = await getSearchingUserCount();
 
     return res.status(201).json({
       success: true,
       queue: {
         position,
         queueCount,
+        onlineCount,
+        searchingCount,
         estimatedWaitSeconds: estimateWaitSeconds(queueCount),
       },
     });
@@ -158,9 +168,11 @@ export const getQueueStatusHandler = async (
     }
 
     const queueCount = await getQueueCount();
+    const onlineCount = await getOnlineUserCount();
+    const searchingCount = await getSearchingUserCount();
     const inQueue = await isUserInQueue(req.user.id);
     const position = inQueue
-      ? await getQueuePosition(req.user.id)
+      ? await getActiveQueuePosition(req.user.id)
       : null;
 
     return res.json({
@@ -169,6 +181,8 @@ export const getQueueStatusHandler = async (
         inQueue,
         position,
         queueCount,
+        onlineCount,
+        searchingCount,
         estimatedWaitSeconds: estimateWaitSeconds(queueCount),
         rating: user.elo,
       },

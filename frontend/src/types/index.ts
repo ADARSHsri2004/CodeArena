@@ -5,16 +5,21 @@ export type Problem = {
   slug: string;
   title: string;
   difficulty: Difficulty;
-  acceptanceRate: number;
+  rating: number;
   tags: string[];
   statement: string;
+  inputFormat: string;
+  outputFormat: string;
   examples: Array<{
     input: string;
     output: string;
-    explanation: string;
+    explanation?: string;
   }>;
   constraints: string[];
-  discussion: string[];
+  publicTestCases: Array<{
+    input: string;
+    output: string;
+  }>;
 };
 
 export type SubmissionLanguage = "CPP";

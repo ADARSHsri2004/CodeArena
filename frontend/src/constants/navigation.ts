@@ -18,61 +18,167 @@ export const dashboardNavigation = [
 
 export const problems: Problem[] = [
   {
-    id: "11111111-1111-4111-8111-111111111111",
-    slug: "two-sum-sprint",
-    title: "Two Sum Sprint",
+    id: "CA001",
+    slug: "array-champion",
+    title: "Array Champion",
     difficulty: "easy",
-    acceptanceRate: 84,
-    tags: ["Arrays", "Hash Map", "Warmup"],
-    statement:
-      "Given an array of integers and a target, return the indices of the two numbers that add up to the target. Solve it in the fewest possible passes.",
+    rating: 900,
+    tags: ["Array", "Implementation"],
+    statement: "You are given an array of N integers. Find the largest element in the array and print how many times it appears.",
+    inputFormat: "The first line contains an integer N. The second line contains N space-separated integers.",
+    outputFormat: "Print a single integer representing the frequency of the maximum element.",
     examples: [
       {
-        input: "4\n2 7 11 15\n9",
-        output: "0 1",
-        explanation: "2 + 7 = 9, so the answer is indices 0 and 1.",
+        input: "5\n1 3 2 3 3",
+        output: "3",
+        explanation: "The maximum element is 3 and it appears 3 times.",
       },
-    ],
-    constraints: ["Exactly one valid answer exists.", "Do not reuse the same element twice."],
-    discussion: ["Can you solve this in O(n) time?", "Why does the hash map approach win here?"],
-  },
-  {
-    id: "22222222-2222-4222-8222-222222222222",
-    slug: "balanced-brackets-duel",
-    title: "Balanced Brackets Duel",
-    difficulty: "medium",
-    acceptanceRate: 56,
-    tags: ["Stacks", "Parsing", "Strings"],
-    statement:
-      "Check whether a string of brackets is valid. A string is valid if every opening bracket is matched by the correct closing bracket in the correct order.",
-    examples: [
       {
-        input: "()[]{}",
-        output: "true",
-        explanation: "All brackets are paired and nested correctly.",
-      },
-    ],
-    constraints: ["Input length can be up to 100,000 characters.", "Only bracket characters appear."],
-    discussion: ["What data structure naturally models this constraint?", "How would you extend this for custom bracket pairs?"],
-  },
-  {
-    id: "33333333-3333-4333-8333-333333333333",
-    slug: "battlefield-pathfinding",
-    title: "Battlefield Pathfinding",
-    difficulty: "hard",
-    acceptanceRate: 29,
-    tags: ["Graphs", "BFS", "Shortest Path"],
-    statement:
-      "Find the minimum number of moves required to reach the goal in a weighted grid with blocked cells and teleport pads.",
-    examples: [
-      {
-        input: "3 3\n1 0 0\n0 -1 0\n0 0 2",
+        input: "4\n7 7 7 7",
         output: "4",
-        explanation: "A shortest path around the blocked cell takes four moves.",
+        explanation: "The maximum element is 7 and it appears 4 times.",
       },
     ],
-    constraints: ["Teleport pads are optional.", "The grid is always at least 2x2."],
-    discussion: ["When does BFS break down, and why?", "Which graph representation is most ergonomic here?"],
+    constraints: ["1 <= N <= 100000", "-1000000000 <= Ai <= 1000000000"],
+    publicTestCases: [
+      {
+        input: "5\n1 3 2 3 3",
+        output: "3",
+      },
+      {
+        input: "4\n7 7 7 7",
+        output: "4",
+      },
+    ],
+  },
+  {
+    id: "CA002",
+    slug: "balanced-brackets",
+    title: "Balanced Brackets",
+    difficulty: "medium",
+    rating: 1100,
+    tags: ["Stack", "String"],
+    statement: "Given a string consisting only of (), {}, and [] brackets, determine whether the sequence is balanced.",
+    inputFormat: "A single string S.",
+    outputFormat: "Print YES if the sequence is balanced, otherwise print NO.",
+    examples: [
+      {
+        input: "([]{})",
+        output: "YES",
+        explanation: "All brackets are matched correctly.",
+      },
+      {
+        input: "([)]",
+        output: "NO",
+        explanation: "The brackets close in the wrong order.",
+      },
+    ],
+    constraints: ["1 <= |S| <= 100000"],
+    publicTestCases: [
+      {
+        input: "([]{})",
+        output: "YES",
+      },
+      {
+        input: "([)]",
+        output: "NO",
+      },
+    ],
+  },
+  {
+    id: "CA003",
+    slug: "maximum-subarray-sum",
+    title: "Maximum Subarray Sum",
+    difficulty: "medium",
+    rating: 1300,
+    tags: ["Array", "Dynamic Programming", "Kadane"],
+    statement: "Given an array of integers, find the maximum possible sum of any contiguous subarray.",
+    inputFormat: "The first line contains N. The second line contains N integers.",
+    outputFormat: "Print the maximum subarray sum.",
+    examples: [
+      {
+        input: "8\n-2 -3 4 -1 -2 1 5 -3",
+        output: "7",
+        explanation: "The subarray [4, -1, -2, 1, 5] has sum 7.",
+      },
+      {
+        input: "3\n-5 -2 -10",
+        output: "-2",
+        explanation: "The maximum subarray contains only -2.",
+      },
+    ],
+    constraints: ["1 <= N <= 200000", "-1000000000 <= Ai <= 1000000000"],
+    publicTestCases: [
+      {
+        input: "8\n-2 -3 4 -1 -2 1 5 -3",
+        output: "7",
+      },
+      {
+        input: "3\n-5 -2 -10",
+        output: "-2",
+      },
+    ],
+  },
+  {
+    id: "CA004",
+    slug: "grid-escape",
+    title: "Grid Escape",
+    difficulty: "medium",
+    rating: 1500,
+    tags: ["Graph", "BFS", "Shortest Path"],
+    statement:
+      "You are given a grid containing S (start), E (destination), . (empty cell), and # (wall). You can move up, down, left, and right. Find the minimum number of moves required to reach E from S. If impossible, print -1.",
+    inputFormat: "The first line contains N and M. The next N lines contain the grid.",
+    outputFormat: "Print the minimum number of moves required.",
+    examples: [
+      {
+        input: "3 4\nS...\n.##.\n...E",
+        output: "5",
+        explanation: "The shortest path length is 5.",
+      },
+    ],
+    constraints: ["1 <= N, M <= 100"],
+    publicTestCases: [
+      {
+        input: "3 4\nS...\n.##.\n...E",
+        output: "5",
+      },
+    ],
+  },
+  {
+    id: "CA005",
+    slug: "power-tournament",
+    title: "Power Tournament",
+    difficulty: "hard",
+    rating: 1800,
+    tags: ["Greedy", "Binary Search", "Implementation"],
+    statement:
+      "There are N players standing in a line. Player i has power Pi. Divide players into the minimum number of consecutive teams such that the sum of powers in each team does not exceed K.",
+    inputFormat: "The first line contains N and K. The second line contains N integers representing player powers.",
+    outputFormat: "Print the minimum number of teams.",
+    examples: [
+      {
+        input: "5 10\n2 3 4 5 2",
+        output: "2",
+        explanation: "Teams can be [2 3 4] and [5 2].",
+      },
+      {
+        input: "4 5\n5 5 5 5",
+        output: "4",
+        explanation: "Each player must form an individual team.",
+      },
+    ],
+    constraints: ["1 <= N <= 200000", "1 <= Pi <= 1000000000", "1 <= K <= 1000000000000000000"],
+    publicTestCases: [
+      {
+        input: "5 10\n2 3 4 5 2",
+        output: "2",
+      },
+      {
+        input: "4 5\n5 5 5 5",
+        output: "4",
+      },
+    ],
   },
 ];
 

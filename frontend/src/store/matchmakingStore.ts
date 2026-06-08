@@ -15,6 +15,8 @@ type MatchmakingState = {
   estimatedWaitTime: string;
   rating: number;
   queueCount: number;
+  onlineCount: number;
+  searchingCount: number;
   queuePosition: number | null;
   matchId: string | null;
   opponent: MatchFoundEvent["opponent"] | null;
@@ -43,6 +45,8 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
   estimatedWaitTime: "--",
   rating: 1200,
   queueCount: 0,
+  onlineCount: 0,
+  searchingCount: 0,
   queuePosition: null,
   matchId: null,
   opponent: null,
@@ -55,6 +59,8 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
       set({
         rating: queue.rating,
         queueCount: queue.queueCount,
+        onlineCount: queue.onlineCount,
+        searchingCount: queue.searchingCount,
         queuePosition: queue.position,
         estimatedWaitTime: formatWait(queue.estimatedWaitSeconds),
         status: queue.inQueue ? "searching" : get().matchId ? "found" : "idle",
@@ -78,6 +84,8 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
       set({
         status: "searching",
         queueCount: queue.queueCount,
+        onlineCount: queue.onlineCount,
+        searchingCount: queue.searchingCount,
         queuePosition: queue.position,
         estimatedWaitTime: formatWait(queue.estimatedWaitSeconds),
         isLoading: false,
@@ -101,6 +109,8 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
         queuePosition: null,
         matchId: null,
         opponent: null,
+        onlineCount: 0,
+        searchingCount: 0,
         isLoading: false,
       });
       await get().refreshStatus();
@@ -130,6 +140,8 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
       matchId: null,
       opponent: null,
       queuePosition: null,
+      onlineCount: 0,
+      searchingCount: 0,
       error: null,
     });
     await get().refreshStatus();

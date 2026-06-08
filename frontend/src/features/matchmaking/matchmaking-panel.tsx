@@ -27,6 +27,8 @@ export function MatchmakingPanel() {
     estimatedWaitTime,
     rating,
     queueCount,
+    onlineCount,
+    searchingCount,
     queuePosition,
     matchId,
     opponent,
@@ -42,6 +44,18 @@ export function MatchmakingPanel() {
   useEffect(() => {
     void refreshStatus();
   }, [refreshStatus]);
+
+  useEffect(() => {
+    if (status !== "searching") {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void refreshStatus();
+    }, 3000);
+
+    return () => window.clearInterval(interval);
+  }, [refreshStatus, status]);
 
   useEffect(() => {
     if (status === "found" && matchId) {
@@ -84,8 +98,19 @@ export function MatchmakingPanel() {
               <p className="mt-2 text-3xl font-semibold text-white">{rating}</p>
             </div>
             <div className="rounded-2xl border border-border bg-white/4 p-4">
-              <p className="text-xs uppercase tracking-[0.22em] text-muted">Active queue</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-muted">Queue total</p>
               <p className="mt-2 text-3xl font-semibold text-white">{queueCount}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-border bg-white/4 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-muted">Online now</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{onlineCount}</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-white/4 p-4">
+              <p className="text-xs uppercase tracking-[0.22em] text-muted">Searching now</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{searchingCount}</p>
             </div>
           </div>
 
@@ -118,7 +143,7 @@ export function MatchmakingPanel() {
                 <div className="flex items-center justify-between text-sm text-muted">
                   <span>
                     Searching for balanced opponent
-                    {queuePosition ? ` · position ${queuePosition}` : ""}
+                    {queuePosition ? ` - position ${queuePosition}` : ""}
                   </span>
                   <span>Live</span>
                 </div>

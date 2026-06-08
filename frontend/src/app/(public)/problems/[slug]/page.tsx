@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { fetchProblemBySlug } from "@/lib/problems-api";
 import { ProblemDetailView } from "@/features/problems/problem-detail-view";
 
+export const dynamic = "force-dynamic";
+
 export default async function Page({
   params,
 }: {

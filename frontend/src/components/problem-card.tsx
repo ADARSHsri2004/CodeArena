@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DifficultyBadge } from "@/components/difficulty-badge";
 import type { Problem } from "@/types";
-import { formatPercent } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 
 export function ProblemCard({ problem }: { problem: Problem }) {
   return (
@@ -35,7 +35,7 @@ export function ProblemCard({ problem }: { problem: Problem }) {
         <div className="flex items-center justify-between text-sm text-muted">
           <span className="inline-flex items-center gap-1.5">
             <Target className="h-4 w-4 text-action" />
-            {formatPercent(problem.acceptanceRate)} acceptance
+            {formatNumber(problem.rating)} rating
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Flame className="h-4 w-4 text-warning" />

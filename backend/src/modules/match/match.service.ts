@@ -11,6 +11,7 @@ import { getIo } from "../../config/socket";
 import { MatchStatus, ParticipantResult } from "../../generated/prisma2/enums";
 import type { Submission } from "../../generated/prisma2/client";
 import { calculateMatchEloChanges } from "./elo.service";
+import { publishMatchEvent } from "./match.realtime";
 import {
   atomicallyPairPlayers,
   clearUserActiveMatchId,
@@ -26,6 +27,7 @@ import type {
   MatchResultPayload,
   MatchTimerSyncPayload,
   PreferredDifficulty,
+  MatchSubmissionState,
   QueuePlayerMeta,
   RedisMatchState,
 } from "./match.types";
@@ -90,6 +92,58 @@ async function saveMatchState(state: RedisMatchState) {
     "EX",
     MATCH_STATE_TTL_SEC
   );
+}
+
+function pushMatchTimeline(
+  state: RedisMatchState,
+  entry: RedisMatchState["timeline"][number]
+) {
+  state.timeline.push(entry);
+  if (state.timeline.length > 100) {
+    state.timeline.splice(0, state.timeline.length - 100);
+  }
+}
+
+async function recordMatchTimelineEvent(
+  state: RedisMatchState,
+  entry: RedisMatchState["timeline"][number]
+) {
+  pushMatchTimeline(state, entry);
+  await saveMatchState(state);
+}
+
+async function publishMatchRoomEvent(
+  matchId: string,
+  type:
+    | "match_started"
+    | "match_timer_sync"
+    | "match_presence"
+    | "match_progress"
+    | "match_result",
+  payload: unknown
+) {
+  await publishMatchEvent({
+    matchId,
+    type,
+    payload,
+  });
+}
+
+function createSubmissionSnapshot(
+  submission: Submission
+): MatchSubmissionState {
+  return {
+    submissionId: submission.id,
+    userId: submission.userId,
+    status: submission.status,
+    passedTestCases: submission.passedTestCases,
+    totalTestCases: submission.totalTestCases,
+    executionTimeMs: submission.executionTimeMs,
+    memoryUsedKb: submission.memoryUsedKb,
+    failureTestCaseIndex: submission.failureTestCaseIndex,
+    judgedAt: submission.judgedAt?.toISOString() ?? null,
+    createdAt: submission.createdAt.toISOString(),
+  };
 }
 
 export async function getRedisMatchState(
@@ -183,6 +237,7 @@ export async function createMatchFromPair(
         username: playerA.username,
         elo: playerA.elo,
         joined: false,
+        connected: false,
         passedTestCases: 0,
         status: "idle",
       },
@@ -190,10 +245,21 @@ export async function createMatchFromPair(
         username: playerB.username,
         elo: playerB.elo,
         joined: false,
+        connected: false,
         passedTestCases: 0,
         status: "idle",
       },
     },
+    submissions: [],
+    timeline: [
+      {
+        type: "match_created",
+        at: new Date().toISOString(),
+        payload: {
+          playerIds: [playerA.userId, playerB.userId],
+        },
+      },
+    ],
   };
 
   await saveMatchState(state);
@@ -217,6 +283,85 @@ export async function createMatchFromPair(
   notify(playerB, playerA);
 
   return match.id;
+}
+
+async function setPlayerConnectionState(
+  matchId: string,
+  userId: string,
+  connected: boolean
+) {
+  const state = await getRedisMatchState(matchId);
+  if (!state || !state.playerIds.includes(userId)) {
+    return null;
+  }
+
+  const player = state.players[userId];
+  if (!player) {
+    return null;
+  }
+
+  const previousConnected = player.connected;
+  player.connected = connected;
+  player.lastSeenAt = new Date().toISOString();
+
+  if (previousConnected !== connected) {
+    pushMatchTimeline(state, {
+      type: connected ? "player_connected" : "player_disconnected",
+      at: new Date().toISOString(),
+      userId,
+    });
+
+    await publishMatchRoomEvent(matchId, "match_presence", {
+      matchId,
+      userId,
+      connected,
+      lastSeenAt: player.lastSeenAt,
+    });
+  }
+
+  await saveMatchState(state);
+
+  return state;
+}
+
+export async function markMatchPlayerConnected(
+  matchId: string,
+  userId: string
+) {
+  return setPlayerConnectionState(matchId, userId, true);
+}
+
+export async function markMatchPlayerDisconnected(
+  matchId: string,
+  userId: string
+) {
+  return setPlayerConnectionState(matchId, userId, false);
+}
+
+export async function getMatchSnapshotForUser(
+  userId: string,
+  matchId: string
+) {
+  const match = await getMatchDetailsForUser(userId, matchId);
+  const state = await getRedisMatchState(matchId);
+
+  return {
+    match,
+    state: state
+      ? {
+          matchId: state.matchId,
+          status: state.status,
+          problemId: state.problemId,
+          playerIds: state.playerIds,
+          startedAt: state.startedAt ?? null,
+          expiresAt: state.expiresAt ?? null,
+          winnerId: state.winnerId ?? null,
+          players: state.players,
+          submissions: state.submissions,
+          timeline: state.timeline,
+        }
+      : null,
+  };
 }
 
 export async function tryPairQueuedPlayers() {
@@ -280,20 +425,42 @@ export async function joinMatchArena(userId: string, matchId: string) {
     throw new Error("Match already finished");
   }
 
-  state.players[userId]!.joined = true;
-  await saveMatchState(state);
+  const player = state.players[userId]!;
+  const wasJoined = player.joined;
+  player.joined = true;
+  player.connected = true;
+  player.lastSeenAt = new Date().toISOString();
 
-  await prisma.matchParticipant.update({
-    where: {
-      matchId_userId: {
-        matchId,
-        userId,
+  if (!wasJoined) {
+    pushMatchTimeline(state, {
+      type: "player_joined",
+      at: new Date().toISOString(),
+      userId,
+    });
+
+    await prisma.matchParticipant.update({
+      where: {
+        matchId_userId: {
+          matchId,
+          userId,
+        },
       },
-    },
-    data: {
-      joinedAt: new Date(),
-    },
-  });
+      data: {
+        joinedAt: new Date(),
+      },
+    });
+  }
+
+  await saveMatchState(state);
+  if (!wasJoined) {
+    await publishMatchRoomEvent(matchId, "match_presence", {
+      matchId,
+      userId,
+      connected: true,
+      joined: true,
+      lastSeenAt: player.lastSeenAt,
+    });
+  }
 
   const allJoined = state.playerIds.every(
     (playerId) => state.players[playerId]?.joined
@@ -306,6 +473,14 @@ export async function joinMatchArena(userId: string, matchId: string) {
     state.status = "ACTIVE";
     state.startedAt = startedAt.toISOString();
     state.expiresAt = expiresAt.toISOString();
+    pushMatchTimeline(state, {
+      type: "match_started",
+      at: startedAt.toISOString(),
+      payload: {
+        startedAt: state.startedAt,
+        expiresAt: state.expiresAt,
+      },
+    });
     await saveMatchState(state);
 
     await prisma.match.update({
@@ -329,8 +504,8 @@ export async function joinMatchArena(userId: string, matchId: string) {
       serverTime: new Date().toISOString(),
     };
 
-    emitToMatchPlayers(state, "match_timer_sync", timerPayload);
-    emitToMatchPlayers(state, "match_started", {
+    await publishMatchRoomEvent(matchId, "match_timer_sync", timerPayload);
+    await publishMatchRoomEvent(matchId, "match_started", {
       matchId,
       status: "ACTIVE",
     });
@@ -354,9 +529,12 @@ export async function getMatchDetailsForUser(
           slug: true,
           difficulty: true,
           statement: true,
+          inputFormat: true,
+          outputFormat: true,
           examples: true,
           constraints: true,
           tags: true,
+          publicTestCases: true,
         },
       },
       participants: {
@@ -409,6 +587,8 @@ export async function getMatchDetailsForUser(
       passedTestCases: state?.players[userId]?.passedTestCases ?? 0,
       status: state?.players[userId]?.status ?? "idle",
     },
+    submissions: state?.submissions ?? [],
+    timeline: state?.timeline ?? [],
   };
 }
 
@@ -492,11 +672,39 @@ export async function handleMatchSubmissionResult(
   playerState.status = submission.status;
   playerState.bestSubmissionId = submission.id;
   playerState.executionTimeMs = submission.executionTimeMs;
+  playerState.lastSeenAt = new Date().toISOString();
 
   if (submission.status === "ACCEPTED") {
     playerState.acceptedAt = submission.judgedAt?.toISOString() ??
       new Date().toISOString();
   }
+
+  const submissionSnapshot = createSubmissionSnapshot(submission);
+  const existingSubmissionIndex = state.submissions.findIndex(
+    (entry) => entry.submissionId === submissionSnapshot.submissionId
+  );
+
+  if (existingSubmissionIndex >= 0) {
+    state.submissions[existingSubmissionIndex] = submissionSnapshot;
+  } else {
+    state.submissions.push(submissionSnapshot);
+  }
+  if (state.submissions.length > 100) {
+    state.submissions.splice(0, state.submissions.length - 100);
+  }
+
+  pushMatchTimeline(state, {
+    type: "match_progress",
+    at: new Date().toISOString(),
+    userId: submission.userId,
+    submissionId: submission.id,
+    payload: {
+      status: submission.status,
+      passedTestCases: submission.passedTestCases,
+      totalTestCases: submission.totalTestCases,
+      executionTimeMs: submission.executionTimeMs,
+    },
+  });
 
   await saveMatchState(state);
 
@@ -521,7 +729,11 @@ export async function handleMatchSubmissionResult(
     executionTimeMs: submission.executionTimeMs,
   };
 
-  emitToMatchPlayers(state, "match_progress", progressPayload);
+  await publishMatchRoomEvent(
+    submission.matchId,
+    "match_progress",
+    progressPayload
+  );
 
   if (submission.status === "ACCEPTED") {
     await finishMatch(submission.matchId, submission.userId);
@@ -591,6 +803,15 @@ export async function finishMatch(
 
   state.status = "FINISHED";
   state.winnerId = winnerId;
+  pushMatchTimeline(state, {
+    type: "match_result",
+    at: new Date().toISOString(),
+    userId: winnerId ?? undefined,
+    payload: {
+      winnerId,
+      reason,
+    },
+  });
   await saveMatchState(state);
   await redis.zrem(MATCH_EXPIRY_INDEX, matchId);
 
@@ -705,7 +926,7 @@ export async function finishMatch(
     }),
   };
 
-  emitToMatchPlayers(state, "match_result", resultPayload);
+  await publishMatchRoomEvent(matchId, "match_result", resultPayload);
 
   return resultPayload;
 }

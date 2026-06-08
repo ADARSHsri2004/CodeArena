@@ -6,6 +6,8 @@ import { MatchCard } from "@/components/match-card";
 import { getFeaturedStats } from "@/lib/data";
 import { fetchProblems } from "@/lib/problems-api";
 
+export const dynamic = "force-dynamic";
+
 export default async function Page() {
   const stats = getFeaturedStats();
   const problems = await fetchProblems();

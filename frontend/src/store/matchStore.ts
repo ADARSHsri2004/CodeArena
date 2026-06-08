@@ -4,6 +4,7 @@ import type {
   BattleMatchResponse,
   MatchProgressEvent,
   MatchResultEvent,
+  MatchSnapshotEvent,
   MatchTimerSyncEvent,
 } from "@/lib/match-api";
 import {
@@ -16,6 +17,7 @@ import {
 type MatchStoreState = {
   match: BattleMatch | null;
   rawMatch: BattleMatchResponse | null;
+  matchState: MatchSnapshotEvent["state"];
   expiresAt: string | null;
   serverOffsetMs: number;
   result: MatchResultEvent | null;
@@ -23,6 +25,7 @@ type MatchStoreState = {
   isLoading: boolean;
   loadMatch: (matchId: string) => Promise<void>;
   joinArena: (matchId: string) => Promise<void>;
+  applySnapshot: (payload: MatchSnapshotEvent) => void;
   syncTimer: (payload: MatchTimerSyncEvent) => void;
   applyProgress: (
     payload: MatchProgressEvent,
@@ -64,6 +67,7 @@ function mapToBattleMatch(
 export const useMatchStore = create<MatchStoreState>((set, get) => ({
   match: null,
   rawMatch: null,
+  matchState: null,
   expiresAt: null,
   serverOffsetMs: 0,
   result: null,
@@ -74,8 +78,13 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     try {
       const response = await fetchMatch(matchId);
       const expiresAt = response.expiresAt;
+      const currentState = get().matchState;
       set({
         rawMatch: response,
+        matchState:
+          currentState && currentState.matchId === response.id
+            ? currentState
+            : null,
         expiresAt,
         match: mapToBattleMatch(response, expiresAt),
         isLoading: false,
@@ -95,8 +104,13 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     try {
       const response = await joinMatchArena(matchId);
       const expiresAt = response.expiresAt;
+      const currentState = get().matchState;
       set({
         rawMatch: response,
+        matchState:
+          currentState && currentState.matchId === response.id
+            ? currentState
+            : null,
         expiresAt,
         match: mapToBattleMatch(response, expiresAt),
         isLoading: false,
@@ -126,6 +140,17 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
         : get().match,
     });
   },
+  applySnapshot: (payload) => {
+    const expiresAt = payload.state?.expiresAt ?? payload.match.expiresAt ?? null;
+
+    set({
+      rawMatch: payload.match,
+      matchState: payload.state,
+      expiresAt,
+      match: mapToBattleMatch(payload.match, expiresAt),
+      result: get().result,
+    });
+  },
   applyProgress: (payload, currentUserId) => {
     const rawMatch = get().rawMatch;
     if (!rawMatch || rawMatch.id !== payload.matchId) {
@@ -152,8 +177,26 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
       },
     };
 
+    const currentState = get().matchState;
+    const currentPlayerState = currentState?.players[payload.userId];
+    const nextMatchState =
+      currentState && currentPlayerState
+        ? {
+            ...currentState,
+            players: {
+              ...currentState.players,
+              [payload.userId]: {
+                ...currentPlayerState,
+                passedTestCases: payload.passedTestCases,
+                status: payload.status,
+              },
+            },
+          }
+        : currentState;
+
     set({
       rawMatch: nextRawMatch,
+      matchState: nextMatchState,
       match: mapToBattleMatch(
         nextRawMatch,
         get().expiresAt
@@ -182,6 +225,7 @@ export const useMatchStore = create<MatchStoreState>((set, get) => ({
     set({
       match: null,
       rawMatch: null,
+      matchState: null,
       expiresAt: null,
       serverOffsetMs: 0,
       result: null,

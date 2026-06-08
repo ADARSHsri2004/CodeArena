@@ -7,6 +7,8 @@ type QueueStatusResponse = {
     inQueue: boolean;
     position: number | null;
     queueCount: number;
+    searchingCount: number;
+    onlineCount: number;
     estimatedWaitSeconds: number;
     rating: number;
   };
@@ -17,6 +19,8 @@ type JoinQueueResponse = {
   queue: {
     position: number | null;
     queueCount: number;
+    searchingCount: number;
+    onlineCount: number;
     estimatedWaitSeconds: number;
   };
 };
@@ -44,6 +48,53 @@ export type MatchTimerSyncEvent = {
   startedAt: string;
   expiresAt: string;
   serverTime: string;
+};
+
+export type MatchSnapshotEvent = {
+  match: BattleMatchResponse;
+  state: {
+    matchId: string;
+    status: string;
+    problemId: string;
+    playerIds: [string, string];
+    startedAt: string | null;
+    expiresAt: string | null;
+    winnerId: string | null;
+    players: Record<
+      string,
+      {
+        username: string;
+        elo: number;
+        joined: boolean;
+        connected: boolean;
+        lastSeenAt?: string;
+        passedTestCases: number;
+        status: string;
+        bestSubmissionId?: string;
+        executionTimeMs?: number | null;
+        acceptedAt?: string;
+      }
+    >;
+    submissions: Array<{
+      submissionId: string;
+      userId: string;
+      status: string;
+      passedTestCases: number;
+      totalTestCases: number;
+      executionTimeMs?: number | null;
+      memoryUsedKb?: number | null;
+      failureTestCaseIndex?: number | null;
+      judgedAt?: string | null;
+      createdAt: string;
+    }>;
+    timeline: Array<{
+      type: string;
+      at: string;
+      userId?: string;
+      submissionId?: string;
+      payload?: Record<string, unknown>;
+    }>;
+  } | null;
 };
 
 export type MatchResultEvent = {
@@ -74,6 +125,8 @@ export type BattleMatchResponse = {
     slug: string;
     difficulty: string;
     statement: string;
+    inputFormat?: string;
+    outputFormat?: string;
     examples: Array<{
       input: string;
       output: string;
@@ -81,6 +134,10 @@ export type BattleMatchResponse = {
     }>;
     constraints: unknown;
     tags: unknown;
+    publicTestCases?: Array<{
+      input: string;
+      output: string;
+    }>;
   };
   opponent: {
     id: string;
@@ -171,16 +228,20 @@ export function mapProblemFromMatch(
     slug: problem.slug,
     title: problem.title,
     difficulty: problem.difficulty.toLowerCase() as Difficulty,
-    acceptanceRate: 0,
+    rating: 0,
     tags,
     statement: problem.statement,
+    inputFormat: problem.inputFormat ?? "",
+    outputFormat: problem.outputFormat ?? "",
     examples: problem.examples.map((example) => ({
       input: example.input,
       output: example.output,
       explanation: example.explanation ?? "",
     })),
     constraints,
-    discussion: [],
+    publicTestCases: Array.isArray(problem.publicTestCases)
+      ? problem.publicTestCases
+      : [],
   };
 }
 
