@@ -1,7 +1,5 @@
 import { create } from "zustand";
-import type {
-  Submission,
-} from "@/types";
+import type { Submission } from "@/types";
 import {
   createSubmission as createSubmissionRequest,
   getSubmissionById,
@@ -16,25 +14,53 @@ type SubmissionState = {
   toast: string | null;
   setSubmission: (submission: Submission | null) => void;
   setToast: (toast: string | null) => void;
-  submitSubmission: (
-    payload: CreateSubmissionPayload
-  ) => Promise<Submission>;
+  submitSubmission: (payload: CreateSubmissionPayload) => Promise<Submission>;
   clearToast: () => void;
   clearError: () => void;
   clearSubmission: () => void;
 };
 
-const defaultSuccessToast =
-  "Submission sent successfully.";
+const defaultSuccessToast = "Submission sent successfully.";
+const initialPollDelayMs = 1_000;
+const maxPollDelayMs = 10_000;
+const maxPollDurationMs = 5 * 60 * 1_000;
 
-const pollIntervalMs = 1_000;
-const maxPollAttempts = 45;
+let activePollToken = 0;
+let lastNotifiedSubmissionId: string | null = null;
 
-async function pollSubmissionResult(submissionId: string) {
-  for (let attempt = 0; attempt < maxPollAttempts; attempt += 1) {
-    await new Promise((resolve) => {
-      window.setTimeout(resolve, pollIntervalMs);
-    });
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+export function applySubmissionUpdate(submission: Submission) {
+  const submissionStore = useSubmissionStore.getState();
+
+  submissionStore.setSubmission(submission);
+
+  if (
+    submission.status !== "PENDING" &&
+    lastNotifiedSubmissionId !== submission.id
+  ) {
+    const status = submission.status as keyof typeof submissionStatusLabels;
+    submissionStore.setToast(
+      `${submissionStatusLabels[status]}: ${submission.passedTestCases}/${submission.totalTestCases} tests passed`
+    );
+    lastNotifiedSubmissionId = submission.id;
+  }
+}
+
+async function pollSubmissionResult(submissionId: string, pollToken: number) {
+  let delayMs = initialPollDelayMs;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < maxPollDurationMs) {
+    await wait(delayMs);
+
+    if (pollToken !== activePollToken) {
+      return;
+    }
 
     const currentSubmission = useSubmissionStore.getState().submission;
 
@@ -47,20 +73,21 @@ async function pollSubmissionResult(submissionId: string) {
 
     try {
       const submission = await getSubmissionById(submissionId);
-      const submissionStore = useSubmissionStore.getState();
 
-      submissionStore.setSubmission(submission);
+      if (pollToken !== activePollToken) {
+        return;
+      }
+
+      applySubmissionUpdate(submission);
 
       if (submission.status !== "PENDING") {
-        const status = submission.status as keyof typeof submissionStatusLabels;
-        submissionStore.setToast(
-          `${submissionStatusLabels[status]}: ${submission.passedTestCases}/${submission.totalTestCases} tests passed`
-        );
         return;
       }
     } catch {
-      // Keep polling until the attempt budget is exhausted.
+      // The API may still be catching up; keep polling with backoff.
     }
+
+    delayMs = Math.min(maxPollDelayMs, Math.round(delayMs * 1.5));
   }
 }
 
@@ -72,21 +99,30 @@ export const useSubmissionStore = create<SubmissionState>((set) => ({
   setSubmission: (submission) => set({ submission }),
   setToast: (toast) => set({ toast }),
   submitSubmission: async (payload) => {
+    activePollToken += 1;
+    const pollToken = activePollToken;
+
+    console.log("[submission-store] submitSubmission called", {
+      problemId: payload.problemId,
+      language: payload.language,
+      codeLength: payload.code.length,
+      matchId: payload.matchId ?? null,
+    });
+
     set({
       isSubmitting: true,
       error: null,
     });
 
     try {
-      const submission =
-        await createSubmissionRequest(payload);
+      const submission = await createSubmissionRequest(payload);
 
       set({
         submission,
         toast: defaultSuccessToast,
       });
 
-      void pollSubmissionResult(submission.id);
+      void pollSubmissionResult(submission.id, pollToken);
 
       return submission;
     } catch (error) {
@@ -108,5 +144,9 @@ export const useSubmissionStore = create<SubmissionState>((set) => ({
   },
   clearToast: () => set({ toast: null }),
   clearError: () => set({ error: null }),
-  clearSubmission: () => set({ submission: null }),
+  clearSubmission: () => {
+    activePollToken += 1;
+    lastNotifiedSubmissionId = null;
+    set({ submission: null });
+  },
 }));

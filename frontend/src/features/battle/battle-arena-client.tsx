@@ -81,7 +81,7 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
             </div>
             <MatchTimer value={timerLabel} />
             <span className="text-sm text-[#b7b7b7]">
-              {match.opponent.username} · {match.opponent.rating}
+              {match.opponent.username} - {match.opponent.rating}
             </span>
           </div>
         </div>
@@ -126,7 +126,7 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
       <div className="grid gap-3 xl:grid-cols-[0.98fr_1.02fr]">
         <ProblemWorkspacePanel
           problem={match.problem}
-          statusLabel={`${match.opponent.username} · ${match.opponent.status}`}
+          statusLabel={`${match.opponent.username} - ${match.opponent.status}`}
         />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -155,7 +155,9 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
           <p>
             Rating change: {formatElo(selfResult.eloChange)} - Final rating: {selfResult.eloAfter}
           </p>
-          <p className="text-sm text-muted">Passed test cases: {selfResult.passedTestCases}</p>
+          <p className="text-sm text-muted">
+            Passed test cases: {selfResult.passedTestCases}
+          </p>
           <Button onClick={() => router.push("/dashboard/matchmaking")}>Queue again</Button>
         </div>
       ) : null}

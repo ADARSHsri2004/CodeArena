@@ -2,11 +2,9 @@ import type { Server as HttpServer } from "http";
 import jwt from "jsonwebtoken";
 import { Server, type Socket } from "socket.io";
 import { JWT_SECRET } from "./jwt";
-import { prisma } from "./prisma";
 import type { Submission } from "../generated/prisma2/client";
 import {
   getMatchSnapshotForUser,
-  handleMatchSubmissionResult,
   markMatchPlayerConnected,
   markMatchPlayerDisconnected,
 } from "../modules/match/match.service";
@@ -19,12 +17,8 @@ import { matchRoom, startMatchEventBridge } from "../modules/match/match.realtim
 const FRONTEND_ORIGIN =
   process.env.FRONTEND_URL ?? "http://localhost:3000";
 
-const WORKER_SECRET =
-  process.env.WORKER_SECRET ?? "codearena-worker-secret";
-
 type UserAuthPayload = {
   token?: string;
-  workerSecret?: string;
 };
 
 type JwtPayload = {
@@ -32,15 +26,7 @@ type JwtPayload = {
   email: string;
 };
 
-type SubmissionResultPayload = {
-  submissionId: string;
-  status: Submission["status"];
-};
-
 type ClientEventHandlers = {
-  "worker:submission_result": (
-    payload: SubmissionResultPayload
-  ) => void;
   "match:sync_request": (
     payload: {
       matchId: string;
@@ -63,7 +49,7 @@ type ServerEventHandlers = {
 };
 
 type SocketData = {
-  role: "user" | "worker";
+  role: "user";
   userId?: string;
 };
 
@@ -100,11 +86,6 @@ export function createSocketServer(httpServer: HttpServer) {
   ioInstance.use((socket, next) => {
     const auth = socket.handshake.auth as UserAuthPayload;
 
-    if (auth.workerSecret && auth.workerSecret === WORKER_SECRET) {
-      socket.data.role = "worker";
-      return next();
-    }
-
     if (!auth.token) {
       return next(new Error("Unauthorized"));
     }
@@ -125,30 +106,10 @@ export function createSocketServer(httpServer: HttpServer) {
   });
 
   ioInstance.on("connection", (socket) => {
-    if (socket.data.role === "user" && socket.data.userId) {
+    if (socket.data.userId) {
       socket.join(`user:${socket.data.userId}`);
       void markUserOnline(socket.data.userId);
       void restoreActiveMatchSession(socket, socket.data.userId);
-    }
-
-    if (socket.data.role === "worker") {
-      socket.on("worker:submission_result", async (payload) => {
-        const submission = await prisma.submission.findUnique({
-          where: {
-            id: payload.submissionId,
-          },
-        });
-
-        if (!submission) {
-          return;
-        }
-
-        ioInstance!.to(`user:${submission.userId}`).emit("submission_result", {
-          submission,
-        });
-
-        await handleMatchSubmissionResult(submission);
-      });
     }
 
     socket.on("match:sync_request", async ({ matchId }) => {

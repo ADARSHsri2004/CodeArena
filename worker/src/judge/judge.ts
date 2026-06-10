@@ -1,12 +1,17 @@
-import { promises as fs } from "fs";
-import os from "os";
-import path from "path";
-import { randomUUID } from "crypto";
-import { runCommand } from "./docker";
 import type {
   JudgeSubmissionRecord,
   SubmissionJudgementUpdate,
 } from "../config/db";
+import {
+  createJudge0Submissions,
+  decodeJudge0Text,
+  getJudge0RuntimeLimits,
+  normalizeJudge0Output,
+  resolveJudge0CppLanguageId,
+  sanitizeJudge0Text,
+  waitForJudge0Submissions,
+  Judge0Error,
+} from "./judge0";
 
 export type JudgeVerdict =
   | "ACCEPTED"
@@ -24,79 +29,6 @@ type TestCase = {
 export type JudgeResult = SubmissionJudgementUpdate & {
   status: JudgeVerdict;
 };
-
-const DEFAULT_DOCKER_IMAGE =
-  process.env.JUDGE_DOCKER_IMAGE ?? "gcc:13-bookworm";
-
-const DOCKER_BASE_ARGS = [
-  "run",
-  "--rm",
-  "--network",
-  "none",
-  "--cpus",
-  "1",
-  "--pids-limit",
-  "64",
-  "--cap-drop",
-  "ALL",
-  "--security-opt",
-  "no-new-privileges",
-  "--read-only",
-  "--tmpfs",
-  "/tmp:rw,noexec,nosuid,size=64m",
-  "--tmpfs",
-  "/var/tmp:rw,noexec,nosuid,size=16m",
-] as const;
-
-function normalizeOutput(value: string) {
-  return value
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .map((line) => line.replace(/[ \t]+$/g, ""))
-    .join("\n")
-    .trimEnd();
-}
-
-function sanitizeText(value: string, maxLength = 8_000) {
-  return value.length > maxLength
-    ? `${value.slice(0, maxLength)}\n...[truncated]`
-    : value;
-}
-
-function buildDockerArgs(
-  image: string,
-  volumePath: string,
-  command: string[],
-  memoryLimitMb: number,
-) {
-  return [
-    ...DOCKER_BASE_ARGS,
-    "--memory",
-    `${memoryLimitMb}m`,
-    "--memory-swap",
-    `${memoryLimitMb}m`,
-    "--mount",
-    `type=bind,source=${volumePath},target=/workspace`,
-    "-w",
-    "/workspace",
-    image,
-    ...command,
-  ];
-}
-
-async function runDockerCommand(
-  image: string,
-  volumePath: string,
-  command: string[],
-  memoryLimitMb: number,
-  timeoutMs: number,
-  input?: string,
-) {
-  return runCommand("docker", buildDockerArgs(image, volumePath, command, memoryLimitMb), {
-    timeoutMs,
-    input,
-  });
-}
 
 function toTestCases(value: unknown): TestCase[] {
   if (!Array.isArray(value)) {
@@ -122,39 +54,107 @@ function toTestCases(value: unknown): TestCase[] {
   });
 }
 
+function parseSubmissionTimeInMs(value: string | null | undefined) {
+  const parsed = Number.parseFloat(value ?? "");
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+
+  return Math.round(parsed * 1000);
+}
+
+function getStatusId(record: { status_id?: number; status?: { id: number } | undefined }) {
+  return record.status_id ?? record.status?.id ?? 0;
+}
+
+function getStatusDescription(record: {
+  status?: { description?: string } | undefined;
+  message?: string | null;
+}) {
+  return record.status?.description ?? record.message ?? "";
+}
+
+function isRuntimeErrorStatus(statusId: number) {
+  return statusId >= 7 && statusId <= 12;
+}
+
+function buildRuntimeMessage(
+  stdout: string | null | undefined,
+  stderr: string | null | undefined,
+  compileOutput: string | null | undefined,
+  message: string,
+) {
+  const text =
+    stderr ??
+    stdout ??
+    compileOutput ??
+    message ??
+    "Judge0 did not return any output.";
+
+  return sanitizeJudge0Text(text);
+}
+
 export async function judgeSubmission(
   submission: JudgeSubmissionRecord,
 ): Promise<JudgeResult> {
+  const publicTestCases = toTestCases(submission.publicTestCases);
   const hiddenTestCases = toTestCases(submission.hiddenTestCases);
-  const totalTestCases = hiddenTestCases.length;
-  const workdir = await fs.mkdtemp(
-    path.join(os.tmpdir(), `codearena-${randomUUID()}-`),
+  const testCases = [...publicTestCases, ...hiddenTestCases];
+  const totalTestCases = testCases.length;
+
+  if (totalTestCases === 0) {
+    return {
+      status: "ACCEPTED",
+      compilerOutput: null,
+      runtimeOutput: null,
+      passedTestCases: 0,
+      totalTestCases: 0,
+      executionTimeMs: 0,
+      memoryUsedKb: null,
+      failureTestCaseIndex: null,
+    };
+  }
+
+  const languageId = await resolveJudge0CppLanguageId();
+  const runtimeLimits = getJudge0RuntimeLimits(submission);
+
+  const plans = testCases.map((testCase) => ({
+    sourceCode: submission.code,
+    stdin: testCase.input,
+    languageId,
+    cpuTimeLimit: runtimeLimits.cpuTimeLimit,
+    wallTimeLimit: runtimeLimits.wallTimeLimit,
+    memoryLimitKb: runtimeLimits.memoryLimitKb,
+  }));
+
+  const createdSubmissions = await createJudge0Submissions(plans);
+  const records = await waitForJudge0Submissions(
+    createdSubmissions.map((item) => item.token),
   );
-  const sourcePath = path.join(workdir, "main.cpp");
 
-  await fs.writeFile(sourcePath, submission.code, "utf8");
-  try {
-    const compileResult = await runDockerCommand(
-      DEFAULT_DOCKER_IMAGE,
-      workdir,
-      [
-        "g++",
-        "-std=c++17",
-        "-O2",
-        "-pipe",
-        "-o",
-        "/workspace/main",
-        "/workspace/main.cpp",
-      ],
-      submission.memoryLimitMb,
-      Math.max(5_000, Math.min(15_000, submission.timeLimitMs * 4)),
-    );
+  let passedTestCases = 0;
+  let executionTimeMs = 0;
+  let memoryUsedKb: number | null = null;
 
-    if (compileResult.timedOut || compileResult.code !== 0) {
+  for (let index = 0; index < testCases.length; index += 1) {
+    const testCase = testCases[index];
+    const record = records[index];
+
+    if (!record) {
+      throw new Judge0Error("Judge0 returned an incomplete batch result.", true);
+    }
+
+    const statusId = getStatusId(record);
+    const statusDescription = getStatusDescription(record);
+
+    if (statusId === 6) {
       return {
         status: "COMPILATION_ERROR",
-        compilerOutput: sanitizeText(
-          compileResult.stderr || compileResult.stdout || "Compilation failed.",
+        compilerOutput: sanitizeJudge0Text(
+          decodeJudge0Text(record.compile_output) ||
+            decodeJudge0Text(record.message) ||
+            "Compilation failed.",
         ),
         runtimeOutput: null,
         passedTestCases: 0,
@@ -165,64 +165,19 @@ export async function judgeSubmission(
       };
     }
 
-    let passedTestCases = 0;
-    let executionTimeMs = 0;
-    let memoryUsedKb = 0;
+    const recordMemory = record.memory ?? null;
 
-    for (let index = 0; index < hiddenTestCases.length; index += 1) {
-      const testCase = hiddenTestCases[index];
-      const runResult = await runDockerCommand(
-        DEFAULT_DOCKER_IMAGE,
-        workdir,
-        ["/workspace/main"],
-        submission.memoryLimitMb,
-        submission.timeLimitMs + 250,
-        testCase.input,
+    executionTimeMs += parseSubmissionTimeInMs(record.time);
+
+    if (recordMemory !== null) {
+      memoryUsedKb = Math.max(memoryUsedKb ?? 0, recordMemory);
+    }
+
+    if (statusId === 3) {
+      const actualOutput = normalizeJudge0Output(
+        decodeJudge0Text(record.stdout),
       );
-
-      executionTimeMs += runResult.durationMs;
-
-      if (runResult.timedOut) {
-        return {
-          status: "TIME_LIMIT_EXCEEDED",
-          compilerOutput: null,
-          runtimeOutput: sanitizeText(runResult.stderr || runResult.stdout),
-          passedTestCases,
-          totalTestCases,
-          executionTimeMs,
-          memoryUsedKb: memoryUsedKb || null,
-          failureTestCaseIndex: index + 1,
-        };
-      }
-
-      if (runResult.code === 137) {
-        return {
-          status: "MEMORY_LIMIT_EXCEEDED",
-          compilerOutput: null,
-          runtimeOutput: sanitizeText(runResult.stderr || runResult.stdout),
-          passedTestCases,
-          totalTestCases,
-          executionTimeMs,
-          memoryUsedKb: memoryUsedKb || null,
-          failureTestCaseIndex: index + 1,
-        };
-      }
-
-      if (runResult.code !== 0) {
-        return {
-          status: "RUNTIME_ERROR",
-          compilerOutput: null,
-          runtimeOutput: sanitizeText(runResult.stderr || runResult.stdout),
-          passedTestCases,
-          totalTestCases,
-          executionTimeMs,
-          memoryUsedKb: memoryUsedKb || null,
-          failureTestCaseIndex: index + 1,
-        };
-      }
-
-      const actualOutput = normalizeOutput(runResult.stdout);
-      const expectedOutput = normalizeOutput(testCase.output);
+      const expectedOutput = normalizeJudge0Output(testCase.output);
 
       if (actualOutput !== expectedOutput) {
         return {
@@ -232,28 +187,86 @@ export async function judgeSubmission(
           passedTestCases,
           totalTestCases,
           executionTimeMs,
-          memoryUsedKb: memoryUsedKb || null,
+          memoryUsedKb,
           failureTestCaseIndex: index + 1,
         };
       }
 
       passedTestCases += 1;
+      continue;
     }
 
-    return {
-      status: "ACCEPTED",
-      compilerOutput: null,
-      runtimeOutput: null,
-      passedTestCases,
-      totalTestCases,
-      executionTimeMs,
-      memoryUsedKb: memoryUsedKb || null,
-      failureTestCaseIndex: null,
-    };
-  } finally {
-    await fs.rm(workdir, {
-      recursive: true,
-      force: true,
-    });
+    if (statusId === 5) {
+      return {
+        status: "TIME_LIMIT_EXCEEDED",
+        compilerOutput: null,
+        runtimeOutput: sanitizeJudge0Text(
+          decodeJudge0Text(record.stderr) ||
+            decodeJudge0Text(record.stdout) ||
+            statusDescription ||
+            "Time limit exceeded.",
+        ),
+        passedTestCases,
+        totalTestCases,
+        executionTimeMs,
+        memoryUsedKb,
+        failureTestCaseIndex: index + 1,
+      };
+    }
+
+    if (statusId === 4) {
+      return {
+        status: "WRONG_ANSWER",
+        compilerOutput: null,
+        runtimeOutput: null,
+        passedTestCases,
+        totalTestCases,
+        executionTimeMs,
+        memoryUsedKb,
+        failureTestCaseIndex: index + 1,
+      };
+    }
+
+    if (statusId === 14 || isRuntimeErrorStatus(statusId)) {
+      return {
+        status: "RUNTIME_ERROR",
+        compilerOutput: null,
+        runtimeOutput: buildRuntimeMessage(
+          decodeJudge0Text(record.stdout),
+          decodeJudge0Text(record.stderr),
+          decodeJudge0Text(record.compile_output),
+          statusDescription,
+        ),
+        passedTestCases,
+        totalTestCases,
+        executionTimeMs,
+        memoryUsedKb,
+        failureTestCaseIndex: index + 1,
+      };
+    }
+
+    if (statusId === 13) {
+      throw new Judge0Error("Judge0 reported an internal error.", true);
+    }
+
+    if (statusId === 1 || statusId === 2) {
+      throw new Judge0Error("Judge0 returned an unexpected submission state.", true);
+    }
+
+    throw new Judge0Error(
+      `Judge0 returned an unsupported final status: ${statusId}`,
+      true,
+    );
   }
+
+  return {
+    status: "ACCEPTED",
+    compilerOutput: null,
+    runtimeOutput: null,
+    passedTestCases,
+    totalTestCases,
+    executionTimeMs,
+    memoryUsedKb,
+    failureTestCaseIndex: null,
+  };
 }

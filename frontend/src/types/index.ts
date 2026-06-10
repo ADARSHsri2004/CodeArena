@@ -24,6 +24,16 @@ export type Problem = {
 
 export type SubmissionLanguage = "CPP";
 
+export type SubmissionTestCaseVerdictStatus =
+  | "PASSED"
+  | "FAILED"
+  | "SKIPPED";
+
+export type SubmissionTestCaseVerdict = {
+  index: number;
+  status: SubmissionTestCaseVerdictStatus;
+};
+
 export type SubmissionStatus =
   | "PENDING"
   | "ACCEPTED"
@@ -45,6 +55,7 @@ export type Submission = {
   runtimeOutput: string | null;
   passedTestCases: number;
   totalTestCases: number;
+  testCaseVerdicts: SubmissionTestCaseVerdict[];
   executionTimeMs: number | null;
   memoryUsedKb: number | null;
   failureTestCaseIndex: number | null;

@@ -136,6 +136,7 @@ model Submission {
   runtimeOutput String?
   passedTestCases Int @default(0)
   totalTestCases Int @default(0)
+  testCaseVerdicts Json
   executionTimeMs Int?
   memoryUsedKb Int?
   failureTestCaseIndex Int?

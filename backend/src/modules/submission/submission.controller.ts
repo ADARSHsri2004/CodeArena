@@ -25,10 +25,28 @@ export const createSubmissionHandler = async (
       });
     }
 
+    console.log("[submission-controller] createSubmission request", {
+      userId: req.user.id,
+      body: {
+        problemId: req.body.problemId,
+        language: req.body.language,
+        codeLength: req.body.code.length,
+        matchId: req.body.matchId ?? null,
+        codePreview: req.body.code.slice(0, 300),
+      },
+    });
+
     const submission = await createSubmission(
       req.user.id,
       req.body
     );
+
+    console.log("[submission-controller] createSubmission response", {
+      submissionId: submission.id,
+      status: submission.status,
+      passedTestCases: submission.passedTestCases,
+      totalTestCases: submission.totalTestCases,
+    });
 
     return res.status(201).json({
       success: true,
@@ -45,13 +63,6 @@ export const createSubmissionHandler = async (
       error.message === "Match already has a winner"
     ) {
       return res.status(404).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    if (error.message === "Failed to queue submission for judging") {
-      return res.status(503).json({
         success: false,
         message: error.message,
       });

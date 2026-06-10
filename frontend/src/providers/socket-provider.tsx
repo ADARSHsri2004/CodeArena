@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { getAuthToken } from "@/lib/auth-session";
-import { submissionStatusLabels } from "@/lib/submission-status";
 import type {
   MatchFoundEvent,
   MatchProgressEvent,
@@ -16,7 +15,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useMatchStore } from "@/store/matchStore";
 import { useMatchmakingStore } from "@/store/matchmakingStore";
 import { useSocketStore } from "@/store/socketStore";
-import { useSubmissionStore } from "@/store/submission.store";
+import { applySubmissionUpdate } from "@/store/submission.store";
 import type { Submission } from "@/types";
 
 type ServerToClientEvents = {
@@ -38,11 +37,7 @@ type ClientToServerEvents = {
 };
 
 const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL ??
-  new URL(
-    process.env.NEXT_PUBLIC_API_URL ??
-      "http://localhost:5000/api"
-  ).origin;
+  process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:5000";
 
 export function SocketProvider({
   children,
@@ -116,15 +111,7 @@ export function SocketProvider({
     });
     socket.on("disconnect", disconnect);
     socket.on("submission_result", ({ submission }) => {
-      const submissionStore = useSubmissionStore.getState();
-
-      submissionStore.setSubmission(submission);
-      if (submission.status !== "PENDING") {
-        const status = submission.status as keyof typeof submissionStatusLabels;
-        submissionStore.setToast(
-          `${submissionStatusLabels[status]}: ${submission.passedTestCases}/${submission.totalTestCases} tests passed`
-        );
-      }
+      applySubmissionUpdate(submission);
       emitEvent("submission_result");
     });
 

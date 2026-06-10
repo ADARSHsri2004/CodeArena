@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosHeaders } from "axios";
 import { authTokenKey } from "@/lib/auth-session";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api",
+  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api",
   timeout: 12000,
   headers: {
     "Content-Type": "application/json",

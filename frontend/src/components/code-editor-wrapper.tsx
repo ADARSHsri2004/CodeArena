@@ -103,6 +103,14 @@ export function CodeEditorWrapper({
 
     clearError();
 
+    console.log("[code-editor] Submit clicked", {
+      problemId,
+      matchId: matchId ?? null,
+      language,
+      codeLength: value.length,
+      codePreview: value.slice(0, 300),
+    });
+
     try {
       await submitSubmission({
         problemId,

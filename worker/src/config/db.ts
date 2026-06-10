@@ -1,8 +1,15 @@
 import { Pool } from "pg";
 
+type PgQueryPool = {
+  query: (
+    text: string,
+    params?: unknown[],
+  ) => Promise<{ rows?: unknown[] }>;
+};
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-});
+}) as unknown as PgQueryPool;
 
 export type JudgeSubmissionRecord = {
   id: string;
@@ -19,6 +26,7 @@ export type JudgeSubmissionRecord = {
   memoryUsedKb: number | null;
   failureTestCaseIndex: number | null;
   judgedAt: Date | string | null;
+  publicTestCases: unknown;
   hiddenTestCases: unknown;
   timeLimitMs: number;
   memoryLimitMb: number;
@@ -79,6 +87,7 @@ export async function fetchSubmissionForJudging(
         s."memoryUsedKb",
         s."failureTestCaseIndex",
         s."judgedAt",
+        p."publicTestCases",
         p."hiddenTestCases",
         p."timeLimitMs",
         p."memoryLimitMb"
@@ -98,6 +107,7 @@ export async function fetchSubmissionForJudging(
 
   return {
     ...row,
+    publicTestCases: toTestCaseArray(row.publicTestCases),
     hiddenTestCases: toTestCaseArray(row.hiddenTestCases),
   };
 }

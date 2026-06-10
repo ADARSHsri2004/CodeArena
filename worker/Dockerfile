@@ -1,20 +1,17 @@
 FROM node:22-bookworm
 
-RUN apt-get update \
-  && apt-get install -y docker.io \
-  && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
 COPY backend/package.json backend/package-lock.json* ./backend/
-RUN cd backend && npm ci
+RUN cd backend && npm install --no-fund --no-audit
 
 COPY worker/package.json worker/package-lock.json* ./worker/
-RUN cd worker && npm install
+RUN cd worker && npm install --no-fund --no-audit
 
 COPY backend ./backend
 COPY worker ./worker
 
 WORKDIR /app/worker
+RUN npm run build
 
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "start"]

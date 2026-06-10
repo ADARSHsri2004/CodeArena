@@ -2,8 +2,8 @@ import { prisma } from "../../config/prisma";
 import { SubmissionStatus } from "../../generated/prisma2/enums";
 import type { Submission } from "../../generated/prisma2/client";
 import type { CreateSubmissionBody } from "./submission.validation";
-import { scheduleSubmissionProcessing } from "./submission.processor";
 import { validateMatchSubmission } from "../match/match.service";
+import { judgeSubmission } from "./judge0.service";
 
 export const createSubmission = async (
   userId: string,
@@ -51,22 +51,36 @@ export const createSubmission = async (
       language: input.language,
       code: input.code,
       status: SubmissionStatus.PENDING,
+      testCaseVerdicts: [],
     },
   });
 
   try {
-    await scheduleSubmissionProcessing(submission.id);
-  } catch {
-    await prisma.submission.delete({
+    const judgedSubmission = await judgeSubmission(submission.id);
+
+    if (!judgedSubmission) {
+      throw new Error("Failed to judge submission");
+    }
+
+    return judgedSubmission;
+  } catch (error) {
+    const failedSubmission = await prisma.submission.update({
       where: {
         id: submission.id,
       },
+      data: {
+        status: SubmissionStatus.RUNTIME_ERROR,
+        runtimeOutput:
+          error instanceof Error
+            ? error.message
+            : "Failed to judge submission",
+        testCaseVerdicts: [],
+        judgedAt: new Date(),
+      },
     });
 
-    throw new Error("Failed to queue submission for judging");
+    return failedSubmission;
   }
-
-  return submission;
 };
 
 export const getSubmissionById = async (

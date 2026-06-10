@@ -2,7 +2,8 @@ import path from "path";
 import dotenv from "dotenv";
 
 dotenv.config({
-  path: path.resolve(__dirname, "../../backend/.env"),
+  // Resolve from the worker package root so dev and built runs both land on the repo-level backend env.
+  path: path.resolve(process.cwd(), "../backend/.env"),
 });
 dotenv.config();
 
@@ -22,10 +23,26 @@ import {
   judgeSubmission,
   type JudgeResult,
 } from "./judge/judge";
+import {
+  Judge0Error,
+  getJobMaxAttempts,
+  waitForJudge0Ready,
+} from "./judge/judge0";
 
 type SubmissionJob = {
   submissionId: string;
+  attempts?: number;
 };
+
+function countTestCases(value: unknown) {
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 async function persistResult(
   submissionId: string,
@@ -41,7 +58,7 @@ async function processJob(job: SubmissionJob) {
     console.warn(
       `Submission ${job.submissionId} was not found. Skipping job.`,
     );
-    return;
+    return "skipped";
   }
 
   try {
@@ -51,6 +68,34 @@ async function processJob(job: SubmissionJob) {
 
     emitSubmissionResult(submission.id, result.status);
   } catch (error) {
+    if (error instanceof Judge0Error && error.retryable) {
+      const attempts = job.attempts ?? 0;
+      const maxAttempts = getJobMaxAttempts();
+
+      if (attempts + 1 < maxAttempts) {
+        const backoffMs = Math.min(10_000, 1_000 * 2 ** attempts);
+        console.warn(
+          `Judge0 retryable error for submission ${submission.id} on attempt ${attempts + 1}/${maxAttempts}: ${error.message}. Re-queuing in ${backoffMs}ms.`,
+        );
+
+        await wait(backoffMs);
+
+        await redis.lpush(
+          CODE_EXECUTION_QUEUE,
+          JSON.stringify({
+            submissionId: job.submissionId,
+            attempts: attempts + 1,
+          }),
+        );
+
+        console.warn(
+          `Judge0 failed for submission ${submission.id}. Re-queued attempt ${attempts + 2}/${maxAttempts}.`,
+        );
+
+        return "requeued";
+      }
+    }
+
     const runtimeOutput =
       error instanceof Error ? error.message : "Unexpected worker failure";
 
@@ -59,9 +104,9 @@ async function processJob(job: SubmissionJob) {
       compilerOutput: null,
       runtimeOutput,
       passedTestCases: submission.passedTestCases,
-      totalTestCases: Array.isArray(submission.hiddenTestCases)
-        ? submission.hiddenTestCases.length
-        : submission.totalTestCases,
+      totalTestCases:
+        countTestCases(submission.publicTestCases) +
+        countTestCases(submission.hiddenTestCases),
       executionTimeMs: submission.executionTimeMs,
       memoryUsedKb: submission.memoryUsedKb,
       failureTestCaseIndex: submission.failureTestCaseIndex,
@@ -69,29 +114,10 @@ async function processJob(job: SubmissionJob) {
 
     emitSubmissionResult(submission.id, "RUNTIME_ERROR");
 
-    throw error;
-  }
-}
-
-function shouldRequeueJob(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
+    return "failed";
   }
 
-  const retryableCodes = new Set([
-    "ECONNREFUSED",
-    "ENOTFOUND",
-    "ETIMEDOUT",
-    "ECONNRESET",
-  ]);
-
-  const errorWithCode = error as Error & { code?: string };
-
-  return (
-    (errorWithCode.code && retryableCodes.has(errorWithCode.code)) ||
-    error.message.includes("connect") ||
-    error.message.includes("timeout")
-  );
+  return "done";
 }
 
 function connectWorkerSocket(timeoutMs = 5_000) {
@@ -122,6 +148,25 @@ async function startWorker() {
     throw new Error("DATABASE_URL is required for the judge worker.");
   }
 
+  console.log("Waiting for Judge0 server to become reachable...");
+
+  // Keep the worker idle until the Judge0 API itself is reachable. Actual
+  // execution slots can still warm up after this, and job retries will handle
+  // temporary execution lag.
+  while (true) {
+    try {
+      await waitForJudge0Ready();
+      console.log("Judge0 server is reachable.");
+      break;
+    } catch (error) {
+      console.warn(
+        "Judge0 is not ready yet. Retrying in 5 seconds.",
+        error,
+      );
+      await wait(5_000);
+    }
+  }
+
   await connectWorkerSocket();
   console.log(`Worker waiting on ${CODE_EXECUTION_QUEUE}...`);
 
@@ -140,18 +185,15 @@ async function startWorker() {
     try {
       job = JSON.parse(rawJob) as SubmissionJob;
       console.log(`Processing submission ${job.submissionId}...`);
-      await processJob(job);
-      console.log(`Finished submission ${job.submissionId}.`);
+      const outcome = await processJob(job);
+
+      if (outcome === "done") {
+        console.log(`Finished submission ${job.submissionId}.`);
+      } else if (outcome === "requeued") {
+        console.log(`Submission ${job.submissionId} will retry later.`);
+      }
     } catch (error) {
       console.error("Failed to process job:", error);
-
-      if (job && shouldRequeueJob(error)) {
-        await redis.lpush(
-          CODE_EXECUTION_QUEUE,
-          JSON.stringify(job),
-        );
-        console.warn(`Re-queued submission ${job.submissionId} for retry.`);
-      }
     }
   }
 }
