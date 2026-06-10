@@ -5,6 +5,10 @@ import {
 } from "../services/auth.service";
 import { prisma } from "../config/prisma";
 import { AuthRequest } from "../middleware/auth.middleware";
+import {
+  AUTH_COOKIE_NAME,
+  buildAuthCookieOptions,
+} from "../utils/auth-cookie";
 
 function logAuthError(
   action: "register" | "login",
@@ -70,6 +74,17 @@ export const register = async (
       password
     );
 
+    const session = await loginUser(
+      email,
+      password
+    );
+
+    res.cookie(
+      AUTH_COOKIE_NAME,
+      session.token,
+      buildAuthCookieOptions()
+    );
+
     return res.status(201).json({
       success: true,
       user
@@ -106,9 +121,15 @@ export const login = async (
       password
     );
 
+    res.cookie(
+      AUTH_COOKIE_NAME,
+      data.token,
+      buildAuthCookieOptions()
+    );
+
     return res.status(200).json({
       success: true,
-      ...data
+      user: data.user
     });
   } catch (error: any) {
     if (error.message === "Invalid credentials") {
@@ -127,4 +148,17 @@ export const login = async (
       message: "Internal server error"
     });
   }
+};
+
+export const logout = async (
+  _req: Request,
+  res: Response
+) => {
+  res.clearCookie(AUTH_COOKIE_NAME, {
+    path: "/",
+  });
+
+  return res.json({
+    success: true
+  });
 };

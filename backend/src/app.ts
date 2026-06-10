@@ -11,7 +11,13 @@ import submissionRoutes from "./modules/submission/submission.routes"
 import matchRoutes from "./modules/match/match.routes"
 const app = express();
 
-app.use(cors());
+const FRONTEND_ORIGIN =
+  process.env.FRONTEND_URL ?? "http://localhost:3000";
+
+app.use(cors({
+  origin: FRONTEND_ORIGIN,
+  credentials: true,
+}));
 app.use(express.json());
 
 app.get("/health", (_, res) => {

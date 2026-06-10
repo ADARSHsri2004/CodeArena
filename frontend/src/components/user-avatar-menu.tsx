@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LogOut, UserRound, Settings } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { logoutUser } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/authStore";
 
 export function UserAvatarMenu() {
@@ -45,9 +46,13 @@ export function UserAvatarMenu() {
           </Link>
           <button
             className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted hover:bg-white/5 hover:text-white"
-            onClick={() => {
-              signOut();
-              setOpen(false);
+            onClick={async () => {
+              try {
+                await logoutUser();
+              } finally {
+                signOut();
+                setOpen(false);
+              }
             }}
           >
             <LogOut className="h-4 w-4" />

@@ -2,7 +2,8 @@ import { Router } from "express";
 import {
   register,
   login,
-  me
+  me,
+  logout
 } from "../controllers/auth.controller";
 import { protect } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validate.middleware";
@@ -22,6 +23,7 @@ router.post(
   validate(loginSchema),
   login
 );
+router.post("/logout", logout);
 router.get(
   "/check-username/:username",
   async (req, res) => {

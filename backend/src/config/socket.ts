@@ -13,6 +13,7 @@ import {
   markUserOnline,
 } from "../modules/match/matchmaking.service";
 import { matchRoom, startMatchEventBridge } from "../modules/match/match.realtime";
+import { getSessionTokenFromHeaders } from "../utils/auth-cookie";
 
 const FRONTEND_ORIGIN =
   process.env.FRONTEND_URL ?? "http://localhost:3000";
@@ -85,16 +86,15 @@ export function createSocketServer(httpServer: HttpServer) {
 
   ioInstance.use((socket, next) => {
     const auth = socket.handshake.auth as UserAuthPayload;
+    const token =
+      auth.token ?? getSessionTokenFromHeaders(socket.handshake.headers);
 
-    if (!auth.token) {
+    if (!token) {
       return next(new Error("Unauthorized"));
     }
 
     try {
-      const decoded = jwt.verify(
-        auth.token,
-        JWT_SECRET
-      ) as JwtPayload;
+      const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
       socket.data.role = "user";
       socket.data.userId = decoded.id;

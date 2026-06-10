@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
-import { getAuthToken } from "@/lib/auth-session";
 import type {
   MatchFoundEvent,
   MatchProgressEvent,
@@ -78,9 +77,7 @@ export function SocketProvider({
   }, [pathname]);
 
   useEffect(() => {
-    const token = getAuthToken();
-
-    if (!token || !isAuthenticated || !userId) {
+    if (!isAuthenticated || !userId) {
       if (socketRef.current) {
         socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
@@ -92,9 +89,7 @@ export function SocketProvider({
     }
 
     const socket = io(SOCKET_URL, {
-      auth: {
-        token,
-      },
+      withCredentials: true,
       transports: ["websocket"],
     });
 

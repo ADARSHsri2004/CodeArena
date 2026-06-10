@@ -1,23 +1,12 @@
-import axios, { AxiosError, AxiosHeaders } from "axios";
-import { authTokenKey } from "@/lib/auth-session";
+import axios, { AxiosError } from "axios";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000/api",
+  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "/api",
   timeout: 12000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
-});
-
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = window.localStorage.getItem(authTokenKey);
-    if (token) {
-      config.headers = AxiosHeaders.from(config.headers);
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
 });
 
 api.interceptors.response.use(

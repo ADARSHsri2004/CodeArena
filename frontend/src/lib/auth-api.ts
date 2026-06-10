@@ -1,6 +1,5 @@
 import type { AuthUser } from "@/types";
 import { api } from "@/lib/api";
-import { setAuthToken } from "@/lib/auth-session";
 
 export type BackendAuthUser = {
   id: string;
@@ -13,10 +12,6 @@ export type BackendAuthUser = {
 type AuthPayload = {
   success: boolean;
   user: BackendAuthUser;
-};
-
-type LoginPayload = AuthPayload & {
-  token: string;
 };
 
 function buildAvatarUrl(username: string) {
@@ -37,15 +32,12 @@ export function mapBackendUserToAuthUser(user: BackendAuthUser): AuthUser {
 }
 
 export async function loginUser(email: string, password: string) {
-  const { data } = await api.post<LoginPayload>("/auth/login", {
+  const { data } = await api.post<AuthPayload>("/auth/login", {
     email,
     password,
   });
 
-  setAuthToken(data.token);
-
   return {
-    token: data.token,
     user: mapBackendUserToAuthUser(data.user),
   };
 }
@@ -66,4 +58,8 @@ export async function fetchCurrentUser() {
   const { data } = await api.get<AuthPayload>("/auth/me");
 
   return mapBackendUserToAuthUser(data.user);
+}
+
+export async function logoutUser() {
+  await api.post("/auth/logout");
 }
