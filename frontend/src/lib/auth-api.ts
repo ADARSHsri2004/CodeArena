@@ -1,5 +1,6 @@
 import type { AuthUser } from "@/types";
 import { api } from "@/lib/api";
+import { fetchMatchHistory } from "@/lib/match-api";
 
 export type BackendAuthUser = {
   id: string;
@@ -31,6 +32,34 @@ export function mapBackendUserToAuthUser(user: BackendAuthUser): AuthUser {
   };
 }
 
+async function enrichAuthUser(user: AuthUser) {
+  try {
+    const history = await fetchMatchHistory();
+    const matchesPlayed = history.length;
+    const wins = history.filter((match) => match.result === "win").length;
+    const winRate = matchesPlayed ? Math.round((wins / matchesPlayed) * 100) : 0;
+
+    const chronological = [...history].reverse();
+    const changeSum = chronological.reduce((sum, match) => sum + match.eloChange, 0);
+    let runningElo = user.elo - changeSum;
+    let peakElo = user.elo;
+
+    for (const match of chronological) {
+      runningElo += match.eloChange;
+      peakElo = Math.max(peakElo, runningElo);
+    }
+
+    return {
+      ...user,
+      peakElo,
+      matchesPlayed,
+      winRate,
+    };
+  } catch {
+    return user;
+  }
+}
+
 export async function loginUser(email: string, password: string) {
   const { data } = await api.post<AuthPayload>("/auth/login", {
     email,
@@ -38,7 +67,7 @@ export async function loginUser(email: string, password: string) {
   });
 
   return {
-    user: mapBackendUserToAuthUser(data.user),
+    user: await enrichAuthUser(mapBackendUserToAuthUser(data.user)),
   };
 }
 
@@ -50,14 +79,14 @@ export async function registerUser(username: string, email: string, password: st
   });
 
   return {
-    user: mapBackendUserToAuthUser(data.user),
+    user: await enrichAuthUser(mapBackendUserToAuthUser(data.user)),
   };
 }
 
 export async function fetchCurrentUser() {
   const { data } = await api.get<AuthPayload>("/auth/me");
 
-  return mapBackendUserToAuthUser(data.user);
+  return enrichAuthUser(mapBackendUserToAuthUser(data.user));
 }
 
 export async function logoutUser() {

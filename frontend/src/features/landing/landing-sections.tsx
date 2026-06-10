@@ -309,7 +309,7 @@ export function BattleShowcaseSection() {
             className="relative mx-auto w-full max-w-[720px]"
           >
             <Image
-              src="/section1.png"
+              src="/section2.png"
               alt="Two developers competing head to head in a ranked coding duel"
               width={1200}
               height={1200}
@@ -332,9 +332,9 @@ export function BattleShowcaseSection() {
             <Image
               src="/ChatGPT%20Image%20Jun%2010,%202026,%2003_25_09%20PM%20(2).png"
               alt="Real-time battle feed showing live verdicts and match momentum"
-              width={1200}
-              height={1000}
-              className="h-auto w-full object-contain bg-transparent opacity-95 mix-blend-screen"
+              width={1000}
+              height={400}
+              className="h-150 w-full object-contain bg-transparent opacity-95 mix-blend-screen"
               priority
             />
           </motion.div>
