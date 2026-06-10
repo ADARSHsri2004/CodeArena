@@ -65,40 +65,44 @@ export function EditorTestPanel({
   const [activeCase, setActiveCase] = useState(0);
   const [activePanel, setActivePanel] = useState<"testcase" | "result">("testcase");
   const submission = useSubmissionStore((state) => state.submission);
+  const previewSubmission = useSubmissionStore((state) => state.previewSubmission);
   const error = useSubmissionStore((state) => state.error);
+  const activeSubmission = previewSubmission ?? submission;
   const normalizedPublicTestCases = normalizePublicTestCases(publicTestCases);
-  const verdicts = submission?.testCaseVerdicts ?? [];
+  const verdicts = activeSubmission?.testCaseVerdicts ?? [];
 
-  const publicCaseCount = Math.max(normalizedPublicTestCases.length, 1);
+  const publicCaseCount = normalizedPublicTestCases.length;
   const totalCaseCount = Math.max(
-    submission?.totalTestCases ?? 0,
+    activeSubmission?.totalTestCases ?? 0,
     verdicts.length,
-    publicCaseCount,
+    activeSubmission ? publicCaseCount : Math.max(publicCaseCount, 1),
   );
   const hiddenCaseCount = Math.max(0, totalCaseCount - normalizedPublicTestCases.length);
-  const isAccepted = submission?.status === "ACCEPTED";
-  const failedCaseIndex = submission?.failureTestCaseIndex ?? null;
+  const isAccepted = activeSubmission?.status === "ACCEPTED";
+  const failedCaseIndex = activeSubmission?.failureTestCaseIndex ?? null;
 
-  const statusLabel = submission
-    ? submissionStatusLabels[submission.status as keyof typeof submissionStatusLabels]
+  const statusLabel = activeSubmission
+    ? submissionStatusLabels[activeSubmission.status as keyof typeof submissionStatusLabels]
     : "Ready";
 
-  const statusTone = submission
-    ? submission.status === "ACCEPTED"
+  const statusTone = activeSubmission
+    ? activeSubmission.status === "ACCEPTED"
       ? "text-[#31c66a]"
-      : submission.status === "PENDING"
+      : activeSubmission.status === "PENDING"
         ? "text-[#f5c04a]"
         : "text-[#ff5f56]"
     : "text-[#a0a0a0]";
 
   const derivedCaseIndex =
-    submission?.failureTestCaseIndex !== null && submission?.failureTestCaseIndex !== undefined
-      ? Math.max(0, Math.min(submission.failureTestCaseIndex, totalCaseCount - 1))
-      : submission && submission.passedTestCases > 0
-        ? Math.max(0, Math.min(submission.passedTestCases - 1, totalCaseCount - 1))
+    totalCaseCount === 0
+      ? 0
+      : activeSubmission?.failureTestCaseIndex !== null && activeSubmission?.failureTestCaseIndex !== undefined
+      ? Math.max(0, Math.min(activeSubmission.failureTestCaseIndex, totalCaseCount - 1))
+      : activeSubmission && activeSubmission.passedTestCases > 0
+        ? Math.max(0, Math.min(activeSubmission.passedTestCases - 1, totalCaseCount - 1))
         : activeCase;
 
-  const panelValue = submission ? "result" : activePanel;
+  const panelValue = activeSubmission ? "result" : activePanel;
   const selectedCase = normalizedPublicTestCases[derivedCaseIndex];
   const isHiddenCase = derivedCaseIndex >= normalizedPublicTestCases.length;
   const fallbackInput = selectedCase?.input ?? (isHiddenCase ? "Hidden test case" : "Custom input is not configured.");
@@ -106,12 +110,12 @@ export function EditorTestPanel({
   const passedCount =
     verdicts.length > 0
       ? verdicts.filter((verdict) => verdict.status === "PASSED").length
-      : submission?.passedTestCases ?? 0;
-  const runtimeMs = submission?.executionTimeMs ?? null;
-  const memoryKb = submission?.memoryUsedKb ?? null;
+      : activeSubmission?.passedTestCases ?? 0;
+  const runtimeMs = activeSubmission?.executionTimeMs ?? null;
+  const memoryKb = activeSubmission?.memoryUsedKb ?? null;
   const progressValue =
-    submission && submission.totalTestCases > 0
-      ? Math.round((submission.passedTestCases / submission.totalTestCases) * 100)
+    activeSubmission && activeSubmission.totalTestCases > 0
+      ? Math.round((activeSubmission.passedTestCases / activeSubmission.totalTestCases) * 100)
       : 0;
 
   return (
@@ -143,21 +147,21 @@ export function EditorTestPanel({
             <div className="space-y-3 rounded-2xl border border-white/10 bg-black/10 p-4">
               <div className="flex flex-wrap items-center gap-3">
                 <h3 className={cn("text-[18px] font-semibold", statusTone)}>{statusLabel}</h3>
-                {submission ? (
+                {activeSubmission ? (
                   <p className="text-[14px] text-[#c7c7c7]">
-                    {passedCount}/{submission.totalTestCases} test cases passed
+                    {passedCount}/{activeSubmission.totalTestCases} test cases passed
                   </p>
                 ) : compact ? (
                   <p className="text-[14px] text-[#c7c7c7]">Live battle editor ready.</p>
                 ) : null}
               </div>
 
-              {submission ? (
+              {activeSubmission ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-[#b9b9b9]">
                     <span>Progress</span>
                     <span>
-                      {passedCount}/{submission.totalTestCases}
+                      {passedCount}/{activeSubmission.totalTestCases}
                     </span>
                   </div>
                   <Progress value={progressValue} />
@@ -171,9 +175,9 @@ export function EditorTestPanel({
                 {memoryKb !== null ? (
                   <p>Memory: {memoryKb} KB</p>
                 ) : null}
-                {submission?.failureTestCaseIndex !== null &&
-                submission?.failureTestCaseIndex !== undefined ? (
-                  <p>Failed at case {submission.failureTestCaseIndex + 1}</p>
+                {activeSubmission?.failureTestCaseIndex !== null &&
+                activeSubmission?.failureTestCaseIndex !== undefined ? (
+                  <p>Failed at case {activeSubmission.failureTestCaseIndex + 1}</p>
                 ) : null}
                 {hiddenCaseCount > 0 ? (
                   <p>
@@ -249,8 +253,8 @@ export function EditorTestPanel({
                   <p className="mb-2 text-[14px] text-[#c7c7c7]">Console</p>
                   <div className="rounded-xl bg-[#3a3a3a] p-4 font-mono text-[13px] text-[#e5e5e5]">
                     <pre className="h-auto whitespace-pre-wrap">
-                      {submission?.compilerOutput ??
-                        submission?.runtimeOutput ??
+                      {activeSubmission?.compilerOutput ??
+                        activeSubmission?.runtimeOutput ??
                         error ??
                         "No runtime output yet."}
                     </pre>

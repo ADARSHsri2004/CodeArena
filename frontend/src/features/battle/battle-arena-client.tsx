@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { AlertTriangle, LoaderCircle, Swords, TimerReset } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import { CodeEditorWrapper } from "@/components/code-editor-wrapper";
 import { EditorTestPanel } from "@/components/editor-test-panel";
-import { ProblemWorkspacePanel } from "@/components/problem-workspace-panel";
-import { cppStarterTemplate } from "@/lib/cpp-template";
-import { Button } from "@/components/ui/button";
 import { MatchTimer } from "@/components/match-timer";
-import { forfeitMatch } from "@/lib/match-api";
+import { ProblemWorkspacePanel } from "@/components/problem-workspace-panel";
+import { Button } from "@/components/ui/button";
+import { cppStarterTemplate } from "@/lib/cpp-template";
 import { formatElo } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useMatchStore } from "@/store/matchStore";
@@ -25,12 +24,12 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
     isLoading,
     loadMatch,
     joinArena,
+    expiresAt,
+    serverOffsetMs,
     getRemainingLabel,
-    syncTimer,
     clear,
   } = useMatchStore();
   const [timerLabel, setTimerLabel] = useState(() => getRemainingLabel());
-  const [isForfeiting, setIsForfeiting] = useState(false);
 
   useEffect(() => {
     clear();
@@ -39,11 +38,20 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
   }, [clear, joinArena, loadMatch, matchId]);
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
+    let timeoutId = window.setTimeout(function tick() {
       setTimerLabel(getRemainingLabel());
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [getRemainingLabel, match?.id]);
+
+      const adjustedNow = Date.now() + serverOffsetMs;
+      const millisecondsIntoSecond = adjustedNow % 1000;
+      const delay =
+        millisecondsIntoSecond === 0
+          ? 1000
+          : 1000 - millisecondsIntoSecond;
+      timeoutId = window.setTimeout(tick, delay);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [expiresAt, getRemainingLabel, serverOffsetMs, match?.id]);
 
   if (isLoading && !match) {
     return (
@@ -71,56 +79,8 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-[18px] border border-white/10 bg-[#282828] px-5 py-4 text-white">
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.28em] text-[#8e8e8e]">live duel</p>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 text-2xl font-semibold">
-              <Swords className="h-5 w-5 text-[#f5a524]" />
-              <span>{timerLabel}</span>
-            </div>
-            <MatchTimer value={timerLabel} />
-            <span className="text-sm text-[#b7b7b7]">
-              {match.opponent.username} - {match.opponent.rating}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => {
-              const expiresAt = useMatchStore.getState().expiresAt;
-              if (expiresAt) {
-                syncTimer({
-                  matchId,
-                  startedAt: new Date(Date.parse(expiresAt) - 15 * 60 * 1000).toISOString(),
-                  expiresAt,
-                  serverTime: new Date().toISOString(),
-                });
-              }
-            }}
-            className="rounded-lg border-white/10 bg-transparent"
-          >
-            <TimerReset className="h-4 w-4" />
-            Sync Clock
-          </Button>
-          <Button
-            variant="danger"
-            disabled={isForfeiting || Boolean(result)}
-            onClick={async () => {
-              setIsForfeiting(true);
-              try {
-                await forfeitMatch(matchId);
-              } finally {
-                setIsForfeiting(false);
-              }
-            }}
-            className="rounded-lg"
-          >
-            <AlertTriangle className="h-4 w-4" />
-            Forfeit
-          </Button>
-        </div>
+      <div className="pointer-events-none fixed left-1/2 top-[6.5rem] z-40 -translate-x-1/2 sm:top-[5.75rem]">
+        <MatchTimer value={timerLabel} />
       </div>
 
       <div className="grid gap-3 xl:grid-cols-[0.98fr_1.02fr]">

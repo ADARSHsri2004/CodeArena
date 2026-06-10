@@ -39,6 +39,30 @@ export async function createSubmission(
   return data.submission;
 }
 
+export async function runSubmission(
+  payload: CreateSubmissionPayload
+) {
+  console.log("[submission-api] POST /submissions/run payload", {
+    problemId: payload.problemId,
+    language: payload.language,
+    codeLength: payload.code.length,
+    codePreview: payload.code.slice(0, 200),
+  });
+
+  const { data } = await api.post<SubmissionResponse>(
+    "/submissions/run",
+    payload
+  );
+
+  console.log("[submission-api] POST /submissions/run response", {
+    status: data.submission.status,
+    passedTestCases: data.submission.passedTestCases,
+    totalTestCases: data.submission.totalTestCases,
+  });
+
+  return data.submission;
+}
+
 export async function getSubmissionById(
   id: string
 ) {

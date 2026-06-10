@@ -1,4 +1,5 @@
 import fs from "fs/promises";
+import { randomUUID } from "crypto";
 import path from "path";
 import { spawn } from "child_process";
 import { prisma } from "../../config/prisma";
@@ -17,6 +18,18 @@ type TestCaseVerdictStatus = "PASSED" | "FAILED" | "SKIPPED";
 type TestCaseVerdict = {
   index: number;
   status: TestCaseVerdictStatus;
+};
+
+export type SubmissionEvaluationResult = {
+  status: SubmissionStatus;
+  passedTestCases: number;
+  totalTestCases: number;
+  testCaseVerdicts: TestCaseVerdict[];
+  failureTestCaseIndex: number | null;
+  compilerOutput: string | null;
+  runtimeOutput: string | null;
+  executionTimeMs: number | null;
+  memoryUsedKb: number | null;
 };
 
 type Judge0Status = {
@@ -235,17 +248,7 @@ async function publishSubmissionResult(submissionId: string) {
 
 async function updateSubmissionResult(
   submissionId: string,
-  data: Partial<Submission> & {
-    status: SubmissionStatus;
-    passedTestCases: number;
-    totalTestCases: number;
-    testCaseVerdicts: TestCaseVerdict[];
-    failureTestCaseIndex: number | null;
-    compilerOutput: string | null;
-    runtimeOutput: string | null;
-    executionTimeMs: number | null;
-    memoryUsedKb: number | null;
-  },
+  data: SubmissionEvaluationResult,
 ) {
   await prisma.submission.update({
     where: {
@@ -270,6 +273,178 @@ async function updateSubmissionResult(
 
 function buildCompilationErrorMessage(result: Judge0LikeRunResult) {
   return result.stderr.trim() || result.stdout.trim() || "Compilation failed.";
+}
+
+async function evaluateSubmissionCode({
+  submissionId,
+  code,
+  testCases,
+  timeLimitMs,
+  memoryLimitMb,
+}: {
+  submissionId: string;
+  code: string;
+  testCases: ProblemTestCase[];
+  timeLimitMs: number;
+  memoryLimitMb: number;
+}): Promise<SubmissionEvaluationResult> {
+  if (testCases.length === 0) {
+    return {
+      status: SubmissionStatus.ACCEPTED,
+      passedTestCases: 0,
+      totalTestCases: 0,
+      testCaseVerdicts: [],
+      failureTestCaseIndex: null,
+      compilerOutput: null,
+      runtimeOutput: null,
+      executionTimeMs: 0,
+      memoryUsedKb: null,
+    };
+  }
+
+  const submissionDir = await writeSubmissionFiles(
+    submissionId,
+    code,
+    testCases[0]?.input ?? "",
+  );
+
+  try {
+    const compileResult = await compileSubmission(submissionDir);
+
+    if (compileResult.code !== 0) {
+      return {
+        status: SubmissionStatus.COMPILATION_ERROR,
+        passedTestCases: 0,
+        totalTestCases: testCases.length,
+        testCaseVerdicts: buildTestCaseVerdicts(
+          testCases.length,
+          0,
+          null,
+          "SKIPPED",
+        ),
+        failureTestCaseIndex: null,
+        compilerOutput: buildCompilationErrorMessage(compileResult),
+        runtimeOutput: null,
+        executionTimeMs: null,
+        memoryUsedKb: null,
+      };
+    }
+
+    let passedTestCases = 0;
+    let executionTimeMs = 0;
+
+    for (const [index, testCase] of testCases.entries()) {
+      await fs.writeFile(
+        path.join(submissionDir, "input.txt"),
+        testCase.input,
+        "utf8",
+      );
+
+      const startedAt = Date.now();
+      const runResult = await runSubmission(
+        submissionDir,
+        timeLimitMs,
+        memoryLimitMb,
+      );
+      const elapsedMs = Date.now() - startedAt;
+      executionTimeMs = Math.max(executionTimeMs, elapsedMs);
+
+      if (runResult.code === 124) {
+        return {
+          status: SubmissionStatus.TIME_LIMIT_EXCEEDED,
+          passedTestCases,
+          totalTestCases: testCases.length,
+          failureTestCaseIndex: index,
+          testCaseVerdicts: buildTestCaseVerdicts(
+            testCases.length,
+            passedTestCases,
+            index,
+          ),
+          compilerOutput: null,
+          runtimeOutput: toRuntimeErrorOutput(runResult),
+          executionTimeMs,
+          memoryUsedKb: null,
+        };
+      }
+
+      if (runResult.code === 137) {
+        return {
+          status: SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
+          passedTestCases,
+          totalTestCases: testCases.length,
+          failureTestCaseIndex: index,
+          testCaseVerdicts: buildTestCaseVerdicts(
+            testCases.length,
+            passedTestCases,
+            index,
+          ),
+          compilerOutput: null,
+          runtimeOutput: toRuntimeErrorOutput(runResult),
+          executionTimeMs,
+          memoryUsedKb: null,
+        };
+      }
+
+      if (runResult.code !== 0) {
+        return {
+          status: SubmissionStatus.RUNTIME_ERROR,
+          passedTestCases,
+          totalTestCases: testCases.length,
+          failureTestCaseIndex: index,
+          testCaseVerdicts: buildTestCaseVerdicts(
+            testCases.length,
+            passedTestCases,
+            index,
+          ),
+          compilerOutput: null,
+          runtimeOutput: toRuntimeErrorOutput(runResult),
+          executionTimeMs,
+          memoryUsedKb: null,
+        };
+      }
+
+      const actualOutput = normalizeOutput(runResult.stdout);
+      const expectedOutput = normalizeOutput(testCase.output);
+
+      if (actualOutput !== expectedOutput) {
+        return {
+          status: SubmissionStatus.WRONG_ANSWER,
+          passedTestCases,
+          totalTestCases: testCases.length,
+          failureTestCaseIndex: index,
+          testCaseVerdicts: buildTestCaseVerdicts(
+            testCases.length,
+            passedTestCases,
+            index,
+          ),
+          compilerOutput: null,
+          runtimeOutput: actualOutput || null,
+          executionTimeMs,
+          memoryUsedKb: null,
+        };
+      }
+
+      passedTestCases += 1;
+    }
+
+    return {
+      status: SubmissionStatus.ACCEPTED,
+      passedTestCases: testCases.length,
+      totalTestCases: testCases.length,
+      failureTestCaseIndex: null,
+      testCaseVerdicts: buildTestCaseVerdicts(
+        testCases.length,
+        testCases.length,
+        null,
+      ),
+      compilerOutput: null,
+      runtimeOutput: null,
+      executionTimeMs,
+      memoryUsedKb: null,
+    };
+  } finally {
+    await fs.rm(submissionDir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 export async function judgeSubmission(submissionId: string) {
@@ -300,161 +475,33 @@ export async function judgeSubmission(submissionId: string) {
 
   const testCases = collectTestCases(submission.problem);
 
-  if (testCases.length === 0) {
-    return updateSubmissionResult(submission.id, {
-      status: SubmissionStatus.ACCEPTED,
-      passedTestCases: 0,
-      totalTestCases: 0,
-      testCaseVerdicts: [],
-      failureTestCaseIndex: null,
-      compilerOutput: null,
-      runtimeOutput: null,
-      executionTimeMs: 0,
-      memoryUsedKb: null,
-    });
-  }
+  const result = await evaluateSubmissionCode({
+    submissionId: submission.id,
+    code: submission.code,
+    testCases,
+    timeLimitMs: submission.problem.timeLimitMs,
+    memoryLimitMb: submission.problem.memoryLimitMb,
+  });
 
-  const submissionDir = await writeSubmissionFiles(
-    submission.id,
-    submission.code,
-    testCases[0]?.input ?? "",
-  );
+  return updateSubmissionResult(submission.id, result);
+}
 
-  try {
-    const compileResult = await compileSubmission(submissionDir);
-
-    if (compileResult.code !== 0) {
-      return updateSubmissionResult(submission.id, {
-        status: SubmissionStatus.COMPILATION_ERROR,
-        passedTestCases: 0,
-        totalTestCases: testCases.length,
-        testCaseVerdicts: buildTestCaseVerdicts(
-          testCases.length,
-          0,
-          null,
-          "SKIPPED",
-        ),
-        failureTestCaseIndex: null,
-        compilerOutput: buildCompilationErrorMessage(compileResult),
-        runtimeOutput: null,
-        executionTimeMs: null,
-        memoryUsedKb: null,
-      });
-    }
-
-    let passedTestCases = 0;
-    let executionTimeMs = 0;
-
-    for (const testCase of testCases) {
-      await fs.writeFile(
-        path.join(submissionDir, "input.txt"),
-        testCase.input,
-        "utf8",
-      );
-
-      const startedAt = Date.now();
-      const runResult = await runSubmission(
-        submissionDir,
-        submission.problem.timeLimitMs,
-        submission.problem.memoryLimitMb,
-      );
-      const elapsedMs = Date.now() - startedAt;
-      executionTimeMs = Math.max(executionTimeMs, elapsedMs);
-
-      if (runResult.code === 124) {
-        return updateSubmissionResult(submission.id, {
-          status: SubmissionStatus.TIME_LIMIT_EXCEEDED,
-          passedTestCases,
-          totalTestCases: testCases.length,
-          failureTestCaseIndex: testCase.index,
-          testCaseVerdicts: buildTestCaseVerdicts(
-            testCases.length,
-            passedTestCases,
-            testCase.index,
-          ),
-          compilerOutput: null,
-          runtimeOutput: toRuntimeErrorOutput(runResult),
-          executionTimeMs,
-          memoryUsedKb: null,
-        });
-      }
-
-      if (runResult.code === 137) {
-        return updateSubmissionResult(submission.id, {
-          status: SubmissionStatus.MEMORY_LIMIT_EXCEEDED,
-          passedTestCases,
-          totalTestCases: testCases.length,
-          failureTestCaseIndex: testCase.index,
-          testCaseVerdicts: buildTestCaseVerdicts(
-            testCases.length,
-            passedTestCases,
-            testCase.index,
-          ),
-          compilerOutput: null,
-          runtimeOutput: toRuntimeErrorOutput(runResult),
-          executionTimeMs,
-          memoryUsedKb: null,
-        });
-      }
-
-      if (runResult.code !== 0) {
-        return updateSubmissionResult(submission.id, {
-          status: SubmissionStatus.RUNTIME_ERROR,
-          passedTestCases,
-          totalTestCases: testCases.length,
-          failureTestCaseIndex: testCase.index,
-          testCaseVerdicts: buildTestCaseVerdicts(
-            testCases.length,
-            passedTestCases,
-            testCase.index,
-          ),
-          compilerOutput: null,
-          runtimeOutput: toRuntimeErrorOutput(runResult),
-          executionTimeMs,
-          memoryUsedKb: null,
-        });
-      }
-
-      const actualOutput = normalizeOutput(runResult.stdout);
-      const expectedOutput = normalizeOutput(testCase.output);
-
-      if (actualOutput !== expectedOutput) {
-        return updateSubmissionResult(submission.id, {
-          status: SubmissionStatus.WRONG_ANSWER,
-          passedTestCases,
-          totalTestCases: testCases.length,
-          failureTestCaseIndex: testCase.index,
-          testCaseVerdicts: buildTestCaseVerdicts(
-            testCases.length,
-            passedTestCases,
-            testCase.index,
-          ),
-          compilerOutput: null,
-          runtimeOutput: actualOutput || null,
-          executionTimeMs,
-          memoryUsedKb: null,
-        });
-      }
-
-      passedTestCases += 1;
-    }
-
-    return updateSubmissionResult(submission.id, {
-      status: SubmissionStatus.ACCEPTED,
-      passedTestCases: testCases.length,
-      totalTestCases: testCases.length,
-      failureTestCaseIndex: null,
-      testCaseVerdicts: buildTestCaseVerdicts(
-        testCases.length,
-        testCases.length,
-        null,
-      ),
-      compilerOutput: null,
-      runtimeOutput: null,
-      executionTimeMs,
-      memoryUsedKb: null,
-    });
-  } finally {
-    await fs.rm(submissionDir, { recursive: true, force: true }).catch(() => {});
-  }
+export async function evaluatePublicSubmissionPreview({
+  code,
+  publicTestCases,
+  timeLimitMs,
+  memoryLimitMb,
+}: {
+  code: string;
+  publicTestCases: ProblemTestCase[];
+  timeLimitMs: number;
+  memoryLimitMb: number;
+}) {
+  return evaluateSubmissionCode({
+    submissionId: randomUUID(),
+    code,
+    testCases: publicTestCases,
+    timeLimitMs,
+    memoryLimitMb,
+  });
 }

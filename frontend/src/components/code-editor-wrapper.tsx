@@ -11,6 +11,7 @@ import {
   Expand,
   LayoutList,
   Lock,
+  LoaderCircle,
   Play,
   RotateCcw,
   Send,
@@ -38,7 +39,9 @@ export function CodeEditorWrapper({
   const [value, setValue] = useState(initialValue);
   const {
     submitSubmission,
+    runSubmission,
     isSubmitting,
+    isRunning,
     toast,
     clearToast,
     clearError,
@@ -117,6 +120,32 @@ export function CodeEditorWrapper({
         language,
         code: value,
         ...(matchId ? { matchId } : {}),
+      });
+    } catch {
+      // The store already captures the error message for the UI.
+    }
+  };
+
+  const handleRun = async () => {
+    if (!problemId || isSubmitting || isRunning) {
+      return;
+    }
+
+    clearError();
+
+    console.log("[code-editor] Run clicked", {
+      problemId,
+      matchId: matchId ?? null,
+      language,
+      codeLength: value.length,
+      codePreview: value.slice(0, 300),
+    });
+
+    try {
+      await runSubmission({
+        problemId,
+        language,
+        code: value,
       });
     } catch {
       // The store already captures the error message for the UI.
@@ -202,9 +231,15 @@ export function CodeEditorWrapper({
               variant="outline"
               size="sm"
               className="ml-1 h-8 rounded-md border-white/10 bg-transparent px-3 text-[13px] text-[#e7e7e7]"
+              onClick={handleRun}
+              disabled={!problemId || isSubmitting || isRunning}
             >
-              <Play className="h-[14px] w-[14px] fill-current" />
-              Run
+              {isRunning ? (
+                <LoaderCircle className="h-[14px] w-[14px] animate-spin" />
+              ) : (
+                <Play className="h-[14px] w-[14px] fill-current" />
+              )}
+              {isRunning ? "Running..." : "Run"}
             </Button>
             <Button
               size="sm"

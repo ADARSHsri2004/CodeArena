@@ -9,7 +9,7 @@ export default async function Page({
   const { matchId } = await params;
 
   return (
-    <main className="mx-auto max-w-450 px-4 py-6 sm:px-6 lg:px-8">
+    <main className="mx-auto max-w-450 px-4 pb-6 pt-16 sm:px-6 lg:px-8">
       <AuthGate>
         <BattleArenaClient matchId={matchId} />
       </AuthGate>
