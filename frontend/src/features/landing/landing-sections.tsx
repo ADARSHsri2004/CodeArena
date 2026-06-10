@@ -462,7 +462,12 @@ export function LeaderboardPreviewSection() {
             {error}
           </div>
         ) : (
-          <div className="relative mt-5 space-y-3">
+          <div className="relative mt-5 overflow-hidden rounded-2xl border border-white/8 bg-white/[0.02]">
+            <div className="grid grid-cols-[88px_minmax(0,1fr)_120px] gap-4 border-b border-white/8 px-4 py-3 text-xs uppercase tracking-[0.18em] text-muted sm:px-5">
+              <span>Rank</span>
+              <span>User</span>
+              <span className="text-right">Rating</span>
+            </div>
             {entries.map((entry, index) => (
               <LeaderboardPreviewRow
                 key={entry.username}
@@ -501,40 +506,40 @@ function LeaderboardPreviewRow({
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.07 }}
       viewport={{ once: true, amount: 0.2 }}
-      className="group rounded-2xl border border-white/8 bg-white/[0.03] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-amber-400/20 hover:bg-white/[0.05]"
+      className="group grid grid-cols-[88px_minmax(0,1fr)_120px] items-center gap-4 border-b border-white/8 px-4 py-4 transition-colors duration-300 hover:bg-white/[0.03] sm:px-5 last:border-b-0"
     >
-      <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
-        <div className="flex min-w-0 items-center gap-3">
-          <div
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${accent} shadow-[0_0_0_1px_rgba(255,255,255,0.08)]`}
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-sm font-semibold text-white">
-              {index === 0 ? <Crown className="h-4 w-4 text-amber-300" /> : initials}
-            </span>
-          </div>
+      <div className="text-sm font-mono text-muted">
+        #{entry.rank}
+      </div>
 
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-base font-semibold text-white">{entry.username}</p>
-              {index === 0 ? (
-                <Badge variant="ranking" className="h-6 px-2 text-[11px]">
-                  Leader
-                </Badge>
-              ) : null}
-            </div>
-            <p className="text-xs text-muted">
-              {entry.wins} wins, {entry.losses} losses, {winRate}% win rate
-            </p>
-          </div>
+      <div className="flex min-w-0 items-center gap-3">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${accent} shadow-[0_0_0_1px_rgba(255,255,255,0.08)]`}
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-sm font-semibold text-white">
+            {index === 0 ? <Crown className="h-4 w-4 text-amber-300" /> : initials}
+          </span>
         </div>
 
-        <div className="ml-auto flex flex-col items-end gap-2 text-right">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted">Rank #{entry.rank}</p>
-          <p className="text-2xl font-semibold text-white">{formatNumber(entry.elo)}</p>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-white sm:text-base">{entry.username}</p>
+            {index === 0 ? (
+              <Badge variant="ranking" className="h-6 px-2 text-[11px]">
+                Leader
+              </Badge>
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-xs text-muted">
+            {entry.wins} wins, {entry.losses} losses, {winRate}% win rate
+          </p>
         </div>
       </div>
 
-      
+      <div className="flex flex-col items-end gap-1 text-right">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted">Rating</p>
+        <p className="text-xl font-semibold text-white">{formatNumber(entry.elo)}</p>
+      </div>
     </motion.div>
   );
 }
