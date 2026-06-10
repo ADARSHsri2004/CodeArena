@@ -10,7 +10,8 @@ import {
   Gauge,
   Globe2,
   History,
-  Play,
+  Crown,
+  LoaderCircle,
   ShieldCheck,
   Swords,
   Target,
@@ -18,9 +19,10 @@ import {
   Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { leaderboard, problems } from "@/constants/navigation";
+import { problems } from "@/constants/navigation";
 import { formatNumber } from "@/lib/utils";
+import { fetchLeaderboard } from "@/lib/match-api";
+import type { LeaderboardEntry } from "@/types";
 
 const heroStats = [
   { label: "Players online", value: 12400, formatter: (value: number) => `${(value / 1000).toFixed(1)}K` },
@@ -280,68 +282,76 @@ export function HowItWorksSection() {
 export function BattleShowcaseSection() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+      <div className="space-y-8 lg:space-y-10">
         <motion.div
           {...fadeUp}
-          className="rounded-3xl border border-border/70 bg-surface/35 px-5 py-5 sm:px-6"
+          className="grid items-center gap-8 lg:grid-cols-[1fr_1.05fr] lg:gap-12"
         >
-          <div className="flex items-center justify-between border-b border-border/60 pb-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-muted">Live battle</p>
-              <h3 className="mt-2 text-xl font-semibold text-white">Ranked duel in progress</h3>
-            </div>
-            <Badge variant="action" className="gap-1">
-              <Play className="h-3.5 w-3.5" />
-              Live
-            </Badge>
+          <div className="max-w-2xl">
+            <p className="text-xs uppercase tracking-[0.24em] text-muted">Ranked duel</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              Win one-on-one battles and climb the ladder
+            </h2>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-muted sm:text-base">
+              Every match is a direct test of speed and accuracy. Get paired with a comparable
+              opponent, solve the same problem under pressure, and turn clean submissions into
+              rating gains.
+            </p>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-muted sm:text-base">
+              CodeArena keeps the stakes visible with live timers, verdicts, and score pressure so
+              each duel feels immediate and competitive.
+            </p>
           </div>
 
-          <div className="mt-5 grid gap-0 border border-border/60 rounded-2xl overflow-hidden">
-            <BattleRow label="Timer" value="12:41 remaining" />
-            <BattleRow label="You" value="byteKnight - 2,487" />
-            <BattleRow label="Opponent" value="stackWizard - 2,448" />
-            <BattleRow label="Verdict" value="Accepted vs Wrong Answer" />
-            <BattleRow label="Test cases" value="17 / 25 passed" last />
-          </div>
+          <motion.div
+            animate={{ y: [0, -8, 0], rotate: [-0.8, 0.8, -0.8] }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+            className="relative mx-auto w-full max-w-[720px]"
+          >
+            <Image
+              src="/section1.png"
+              alt="Two developers competing head to head in a ranked coding duel"
+              width={1200}
+              height={1200}
+              className="h-auto w-full object-contain bg-transparent opacity-95 mix-blend-screen"
+              priority
+            />
+          </motion.div>
         </motion.div>
 
         <motion.div
           {...fadeUp}
           transition={{ ...fadeUp.transition, delay: 0.05 }}
-          className="rounded-3xl border border-border/70 bg-surface/35 px-5 py-5 sm:px-6"
+          className="grid items-center gap-8 lg:grid-cols-[1.05fr_1fr] lg:gap-12"
         >
-          <div className="flex items-center justify-between border-b border-border/60 pb-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-muted">Battle feed</p>
-              <h3 className="mt-2 text-xl font-semibold text-white">Momentum shifts in real time</h3>
-            </div>
-            <Badge variant="outline" className="border-amber-500/30 text-amber-300">
-              Ongoing
-            </Badge>
-          </div>
+          <motion.div
+            animate={{ y: [0, -10, 0], rotate: [0.8, -0.8, 0.8] }}
+            transition={{ duration: 7.5, repeat: Infinity, ease: "easeInOut" }}
+            className="relative mx-auto w-full max-w-[760px]"
+          >
+            <Image
+              src="/ChatGPT%20Image%20Jun%2010,%202026,%2003_25_09%20PM%20(2).png"
+              alt="Real-time battle feed showing live verdicts and match momentum"
+              width={1200}
+              height={1000}
+              className="h-auto w-full object-contain bg-transparent opacity-95 mix-blend-screen"
+              priority
+            />
+          </motion.div>
 
-          <div className="mt-5 space-y-4">
-            <FeedLine
-              time="04:17"
-              title="byteKnight"
-              status="Accepted"
-              text="Clears public tests and locks in early pressure."
-              tone="success"
-            />
-            <FeedLine
-              time="04:21"
-              title="stackWizard"
-              status="Running"
-              text="Pushes through hidden cases, but stalls near the end."
-              tone="warning"
-            />
-            <FeedLine
-              time="04:29"
-              title="Judge"
-              status="Wrong Answer"
-              text="Mismatch on a hidden test flips the match."
-              tone="danger"
-            />
+          <div className="max-w-2xl lg:justify-self-end lg:text-right">
+            <p className="text-xs uppercase tracking-[0.24em] text-muted">Battle feed</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              Track verdicts and momentum in real time
+            </h2>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-muted sm:text-base lg:ml-auto">
+              Watch each submission change the flow of the match. See accepted runs, stalled
+              attempts, and judge updates as they happen so you always know who is under pressure.
+            </p>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-muted sm:text-base lg:ml-auto">
+              The feed turns every duel into a readable story, making it easy to follow progress,
+              react quickly, and stay locked into the battle.
+            </p>
           </div>
         </motion.div>
       </div>
@@ -349,119 +359,183 @@ export function BattleShowcaseSection() {
   );
 }
 
-function BattleRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) {
-  return (
-    <div className={`grid gap-2 px-4 py-4 sm:grid-cols-[0.4fr_0.6fr] ${last ? "" : "border-b border-border/60"}`}>
-      <p className="text-xs uppercase tracking-[0.18em] text-muted">{label}</p>
-      <p className="text-sm font-medium text-white sm:text-right">{value}</p>
-    </div>
-  );
-}
-
-function FeedLine({
-  time,
-  title,
-  status,
-  text,
-  tone,
-}: {
-  time: string;
-  title: string;
-  status: string;
-  text: string;
-  tone: "success" | "warning" | "danger";
-}) {
-  const toneClass =
-    tone === "success"
-      ? "border-success/30 bg-success/10 text-success"
-      : tone === "warning"
-        ? "border-warning/30 bg-warning/10 text-warning"
-        : "border-danger/30 bg-danger/10 text-danger";
-
-  return (
-    <div className="rounded-2xl border border-border/60 bg-black/15 p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted">{title}</p>
-          <p className="mt-1 text-sm text-white">{text}</p>
-        </div>
-        <span className={`rounded-full border px-2 py-0.5 font-mono text-[11px] ${toneClass}`}>
-          {time}
-        </span>
-      </div>
-      <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3 text-xs">
-        <span className="text-muted">Judge status</span>
-        <Badge variant={tone === "warning" ? "outline" : tone === "success" ? "success" : "danger"}>
-          {status}
-        </Badge>
-      </div>
-    </div>
-  );
-}
-
 export function LeaderboardPreviewSection() {
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [syncedAt, setSyncedAt] = useState<Date | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    let intervalId = 0;
+
+    const loadLeaderboard = async (showLoading = false) => {
+      if (showLoading) {
+        setIsLoading(true);
+      }
+
+      try {
+        const data = await fetchLeaderboard();
+        if (!isMounted) {
+          return;
+        }
+
+        setEntries(data.slice(0, 5));
+        setError(null);
+        setSyncedAt(new Date());
+      } catch (loadError) {
+        if (!isMounted) {
+          return;
+        }
+
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Unable to load the live leaderboard."
+        );
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadLeaderboard(true);
+    intervalId = window.setInterval(() => {
+      void loadLeaderboard(false);
+    }, 8000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const lastUpdatedLabel = syncedAt
+    ? syncedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    : "syncing";
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
       <motion.div
         {...fadeUp}
-        className="rounded-3xl border border-border/70 bg-surface/35 px-5 py-5 sm:px-6"
+        className="relative overflow-hidden rounded-[2rem] border border-border/70 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.14),transparent_32%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.14),transparent_30%),linear-gradient(180deg,rgba(13,16,28,0.96),rgba(8,10,18,0.98))] px-5 py-5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:px-6"
       >
-        <div className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted">Leaderboard preview</p>
-            <h2 className="mt-2 text-2xl font-semibold text-white">Top ranked players</h2>
-          </div>
-          <Link
-            href="/leaderboard"
-            className="inline-flex h-11 items-center justify-center rounded-xl border border-border px-4 text-sm font-medium text-white transition hover:bg-white/5 hover:-translate-y-0.5"
-          >
-            View Full Leaderboard
-          </Link>
+        <div className="pointer-events-none absolute inset-0 opacity-60">
+          <div className="absolute left-10 top-12 h-24 w-24 rounded-full bg-amber-400/10 blur-3xl" />
+          <div className="absolute right-10 top-6 h-32 w-32 rounded-full bg-sky-500/10 blur-3xl" />
         </div>
 
-        <div className="mt-5 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-24">Rank</TableHead>
-                <TableHead>Username</TableHead>
-                <TableHead className="text-right">Rating</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {leaderboard.slice(0, 5).map((entry, index) => (
-                <motion.tr
-                  key={entry.username}
-                  initial={{ opacity: 0, y: 8 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  className="hover:bg-white/4"
-                >
-                  <TableCell className="font-mono text-muted">#{entry.rank}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white/5 text-xs font-semibold text-amber-300">
-                        {entry.username.slice(0, 2).toUpperCase()}
-                      </span>
-                      <div>
-                        <p className="font-medium text-white">{entry.username}</p>
-                        <p className="text-xs text-muted">
-                          {entry.wins}W / {entry.losses}L
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-semibold text-white">
-                    {formatNumber(entry.elo)}
-                  </TableCell>
-                </motion.tr>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="relative flex flex-col gap-4 border-b border-white/8 pb-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.28em] text-amber-300/80">Leaderboard preview</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white sm:text-[2rem]">
+              Top ranked players
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted">
+              Live rankings pulled from the arena so you can track who is climbing, who is
+              holding pressure, and how the rating race is moving.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:items-end">
+            <div className="inline-flex items-center gap-2 rounded-full border border-success/25 bg-success/10 px-3 py-1.5 text-xs font-medium text-success">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
+              Live sync {lastUpdatedLabel}
+            </div>
+            <Link
+              href="/leaderboard"
+              className="inline-flex h-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:border-amber-400/30 hover:bg-amber-500/10"
+            >
+              View Full Leaderboard
+            </Link>
+          </div>
         </div>
+
+        {isLoading ? (
+          <div className="relative flex min-h-[280px] items-center justify-center text-muted">
+            <LoaderCircle className="mr-2 h-5 w-5 animate-spin text-amber-300" />
+            Loading live rankings...
+          </div>
+        ) : error ? (
+          <div className="relative mt-5 rounded-2xl border border-danger/20 bg-danger/10 px-4 py-4 text-sm text-danger">
+            {error}
+          </div>
+        ) : (
+          <div className="relative mt-5 space-y-3">
+            {entries.map((entry, index) => (
+              <LeaderboardPreviewRow
+                key={entry.username}
+                entry={entry}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
       </motion.div>
     </section>
+  );
+}
+
+function LeaderboardPreviewRow({
+  entry,
+  index,
+}: {
+  entry: LeaderboardEntry;
+  index: number;
+}) {
+  const initials = entry.username.slice(0, 2).toUpperCase();
+  const winRate = Math.round((entry.wins / Math.max(1, entry.wins + entry.losses)) * 100);
+  const accent =
+    index === 0
+      ? "from-amber-400 via-orange-400 to-red-400"
+      : index === 1
+        ? "from-sky-400 via-cyan-400 to-emerald-400"
+        : index === 2
+          ? "from-violet-400 via-fuchsia-400 to-pink-400"
+          : "from-white/20 via-white/35 to-white/20";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: index * 0.07 }}
+      viewport={{ once: true, amount: 0.2 }}
+      className="group rounded-2xl border border-white/8 bg-white/[0.03] p-4 transition duration-300 hover:-translate-y-0.5 hover:border-amber-400/20 hover:bg-white/[0.05]"
+    >
+      <div className="flex flex-wrap items-center gap-4 sm:flex-nowrap">
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${accent} shadow-[0_0_0_1px_rgba(255,255,255,0.08)]`}
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-sm font-semibold text-white">
+              {index === 0 ? <Crown className="h-4 w-4 text-amber-300" /> : initials}
+            </span>
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-base font-semibold text-white">{entry.username}</p>
+              {index === 0 ? (
+                <Badge variant="ranking" className="h-6 px-2 text-[11px]">
+                  Leader
+                </Badge>
+              ) : null}
+            </div>
+            <p className="text-xs text-muted">
+              {entry.wins} wins, {entry.losses} losses, {winRate}% win rate
+            </p>
+          </div>
+        </div>
+
+        <div className="ml-auto flex flex-col items-end gap-2 text-right">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted">Rank #{entry.rank}</p>
+          <p className="text-2xl font-semibold text-white">{formatNumber(entry.elo)}</p>
+        </div>
+      </div>
+
+      
+    </motion.div>
   );
 }
 

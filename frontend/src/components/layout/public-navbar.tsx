@@ -12,16 +12,16 @@ export function PublicNavbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-black-100/95 backdrop-blur-xl">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-4">
+      <div className="w-full px-3 sm:px-4 lg:px-6">
+        <div className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:py-3">
           <div className="flex items-center justify-between gap-4">
             <Link href="/" className="flex items-center gap-3">
               <Image
                 src="/logo.png"
                 alt="CodeArena logo"
-                width={44}
-                height={44}
-                className="h-11 w-11 object-contain"
+                width={40}
+                height={40}
+                className="h-10 w-10 object-contain"
                 priority
               />
               <div className="leading-tight">
@@ -56,7 +56,7 @@ export function PublicNavbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-xl px-3 py-2 text-sm text-muted transition hover:bg-white/5 hover:text-white"
+                  className="rounded-xl px-2.5 py-1.5 text-sm text-muted transition hover:bg-white/5 hover:text-white"
                 >
                   {item.label}
                 </Link>
@@ -67,7 +67,7 @@ export function PublicNavbar() {
               <div className="flex items-center gap-3">
                 <Link
                   href="/dashboard"
-                  className="hidden h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-medium text-white transition hover:bg-white/5 sm:inline-flex"
+                  className="hidden h-9 items-center justify-center rounded-xl border border-border px-3.5 text-sm font-medium text-white transition hover:bg-white/5 sm:inline-flex"
                 >
                   Dashboard
                 </Link>
@@ -77,13 +77,13 @@ export function PublicNavbar() {
               <div className="hidden items-center gap-2 sm:flex">
                 <Link
                   href="/login"
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-border px-4 text-sm font-medium text-white transition hover:bg-white/5"
+                  className="inline-flex h-9 items-center justify-center rounded-xl border border-border px-3.5 text-sm font-medium text-white transition hover:bg-white/5"
                 >
                   Login
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 text-sm font-medium text-black transition hover:bg-amber-400"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-amber-500 px-3.5 text-sm font-medium text-black transition hover:bg-amber-400"
                 >
                   Sign Up
                   <ArrowRight className="h-4 w-4" />
@@ -98,7 +98,7 @@ export function PublicNavbar() {
             <Link
               key={item.href}
               href={item.href}
-              className="whitespace-nowrap rounded-xl border border-border/70 px-3 py-2 text-sm text-muted transition hover:bg-white/5 hover:text-white"
+              className="whitespace-nowrap rounded-xl border border-border/70 px-2.5 py-1.5 text-sm text-muted transition hover:bg-white/5 hover:text-white"
             >
               {item.label}
             </Link>
