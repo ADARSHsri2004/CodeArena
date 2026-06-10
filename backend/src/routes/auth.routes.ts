@@ -3,7 +3,9 @@ import {
   register,
   login,
   me,
-  logout
+  logout,
+  startGoogleAuth,
+  googleCallback
 } from "../controllers/auth.controller";
 import { protect } from "../middleware/auth.middleware";
 import { validate } from "../middleware/validate.middleware";
@@ -23,6 +25,8 @@ router.post(
   validate(loginSchema),
   login
 );
+router.get("/google", startGoogleAuth);
+router.get("/google/callback", googleCallback);
 router.post("/logout", logout);
 router.get(
   "/check-username/:username",

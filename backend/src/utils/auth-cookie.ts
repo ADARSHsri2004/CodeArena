@@ -47,6 +47,14 @@ export function getSessionTokenFromHeaders(
   return cookies[AUTH_COOKIE_NAME] ?? null;
 }
 
+export function getCookieValueFromHeaders(
+  headers: Pick<IncomingHttpHeaders, "cookie">,
+  cookieName: string
+) {
+  const cookies = parseCookieHeader(headers.cookie);
+  return cookies[cookieName] ?? null;
+}
+
 export function buildAuthCookieOptions(): CookieOptions {
   const sameSite =
     (process.env.AUTH_COOKIE_SAMESITE ?? "lax").toLowerCase();

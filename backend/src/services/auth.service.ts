@@ -11,6 +11,15 @@ function logAuthServiceStep(
   console.error(`[auth-service] ${step}`, details);
 }
 
+export function createAuthToken(payload: {
+  id: string;
+  email: string;
+}) {
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN
+  });
+}
+
 const toPublicUser = (
   user: {
     id: string;
@@ -140,16 +149,10 @@ export const loginUser = async (
 
   let token: string;
   try {
-    token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email
-      },
-      JWT_SECRET,
-      {
-        expiresIn: JWT_EXPIRES_IN
-      }
-    );
+    token = createAuthToken({
+      id: user.id,
+      email: user.email
+    });
   } catch (error) {
     logAuthServiceStep("login.jwt failed", {
       email: normalizedEmail,

@@ -3,15 +3,31 @@ import {
   registerUser,
   loginUser
 } from "../services/auth.service";
+import {
+  buildGoogleAuthorizationUrl,
+  exchangeGoogleCode,
+  fetchGoogleProfile,
+  findOrCreateGoogleUser,
+} from "../services/google-auth.service";
 import { prisma } from "../config/prisma";
 import { AuthRequest } from "../middleware/auth.middleware";
 import {
   AUTH_COOKIE_NAME,
   buildAuthCookieOptions,
+  getCookieValueFromHeaders,
 } from "../utils/auth-cookie";
+import {
+  OAUTH_STATE_COOKIE_NAME,
+  buildOAuthStateCookieOptions,
+  decodeOAuthStateCookie,
+  encodeOAuthStateCookie,
+  normalizeReturnTo,
+} from "../utils/oauth-state";
+import crypto from "crypto";
+import { createAuthToken } from "../services/auth.service";
 
 function logAuthError(
-  action: "register" | "login",
+  action: "register" | "login" | "google",
   error: unknown,
   context: Record<string, unknown>
 ) {
@@ -26,6 +42,14 @@ function logAuthError(
           }
         : error,
   });
+}
+
+function setSessionCookie(res: Response, token: string) {
+  res.cookie(
+    AUTH_COOKIE_NAME,
+    token,
+    buildAuthCookieOptions()
+  );
 }
 
 export const me = async (
@@ -74,16 +98,8 @@ export const register = async (
       password
     );
 
-    const session = await loginUser(
-      email,
-      password
-    );
-
-    res.cookie(
-      AUTH_COOKIE_NAME,
-      session.token,
-      buildAuthCookieOptions()
-    );
+    const session = await loginUser(email, password);
+    setSessionCookie(res, session.token);
 
     return res.status(201).json({
       success: true,
@@ -121,11 +137,7 @@ export const login = async (
       password
     );
 
-    res.cookie(
-      AUTH_COOKIE_NAME,
-      data.token,
-      buildAuthCookieOptions()
-    );
+    setSessionCookie(res, data.token);
 
     return res.status(200).json({
       success: true,
@@ -161,4 +173,76 @@ export const logout = async (
   return res.json({
     success: true
   });
+};
+
+export const startGoogleAuth = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const state = crypto.randomBytes(16).toString("hex");
+    const returnTo = normalizeReturnTo(req.query.returnTo);
+    const stateCookie = encodeOAuthStateCookie({ state, returnTo });
+
+    res.cookie(
+      OAUTH_STATE_COOKIE_NAME,
+      stateCookie,
+      buildOAuthStateCookieOptions()
+    );
+
+    return res.redirect(buildGoogleAuthorizationUrl(state));
+  } catch (error) {
+    logAuthError("google", error, { flow: "start" });
+    return res.status(500).json({
+      success: false,
+      message: "Google sign-in is not configured"
+    });
+  }
+};
+
+export const googleCallback = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    if (typeof req.query.error === "string") {
+      return res.redirect(
+        new URL("/login?error=google", process.env.FRONTEND_URL ?? "http://localhost:3000").toString()
+      );
+    }
+
+    const code = typeof req.query.code === "string" ? req.query.code : null;
+    const state = typeof req.query.state === "string" ? req.query.state : null;
+    const cookieState = decodeOAuthStateCookie(
+      getCookieValueFromHeaders(req.headers, OAUTH_STATE_COOKIE_NAME) ?? undefined
+    );
+
+    if (!code || !state || !cookieState || cookieState.state !== state) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Google sign-in request"
+      });
+    }
+
+    const accessToken = await exchangeGoogleCode(code);
+    const profile = await fetchGoogleProfile(accessToken);
+    const user = await findOrCreateGoogleUser(profile);
+    const token = createAuthToken({
+      id: user.id,
+      email: user.email
+    });
+
+    setSessionCookie(res, token);
+    res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
+      path: "/api/auth/google"
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
+    return res.redirect(new URL(cookieState.returnTo, frontendUrl).toString());
+  } catch (error) {
+    logAuthError("google", error, { flow: "callback" });
+    return res.redirect(
+      new URL("/login?error=google", process.env.FRONTEND_URL ?? "http://localhost:3000").toString()
+    );
+  }
 };

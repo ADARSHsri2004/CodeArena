@@ -63,3 +63,13 @@ export async function fetchCurrentUser() {
 export async function logoutUser() {
   await api.post("/auth/logout");
 }
+
+export function buildGoogleAuthUrl(returnTo?: string) {
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "");
+  const safeReturnTo =
+    typeof returnTo === "string" && returnTo.startsWith("/") && !returnTo.startsWith("//")
+      ? returnTo
+      : "/dashboard";
+
+  return `${apiBase}/auth/google?returnTo=${encodeURIComponent(safeReturnTo)}`;
+}

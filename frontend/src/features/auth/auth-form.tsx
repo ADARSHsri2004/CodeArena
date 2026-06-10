@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { loginUser, registerUser } from "@/lib/auth-api";
+import { buildGoogleAuthUrl, loginUser, registerUser } from "@/lib/auth-api";
 import { loginSchema, registerSchema, type LoginValues, type RegisterValues } from "@/lib/validators";
 import { useAuthStore } from "@/store/authStore";
 
@@ -21,6 +21,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const setUser = useAuthStore((state) => state.setUser);
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const oauthError = searchParams.get("error");
 
   const loginForm = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -72,6 +73,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     }
   };
 
+  const startGoogleSignIn = () => {
+    const redirect = searchParams.get("redirect");
+    window.location.assign(buildGoogleAuthUrl(redirect ?? "/dashboard"));
+  };
+
   return (
     <Card className="glass-panel border-border/70">
       <CardHeader>
@@ -88,6 +94,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           onSubmit={mode === "login" ? loginForm.handleSubmit(submitLogin) : registerForm.handleSubmit(submitRegister)}
         >
           {submitError ? <p className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">{submitError}</p> : null}
+          {oauthError === "google" ? (
+            <p className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+              Google sign-in was cancelled or failed. Please try again.
+            </p>
+          ) : null}
           {mode === "register" ? (
             <div>
               <label className="mb-2 block text-sm text-muted">Username</label>
@@ -123,7 +134,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {mode === "login" ? "Continue to dashboard" : "Create account"}
           </Button>
-          <Button type="button" variant="outline" className="w-full">
+          <Button type="button" variant="outline" className="w-full" onClick={startGoogleSignIn}>
             <LogIn className="h-4 w-4" />
             Continue with Google
           </Button>
