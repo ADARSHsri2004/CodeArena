@@ -73,6 +73,37 @@ export function MatchmakingPanel() {
         ? 35
         : 0;
 
+  const enterFullscreen = async () => {
+    if (!document.fullscreenEnabled || document.fullscreenElement) {
+      return;
+    }
+
+    await document.documentElement.requestFullscreen().catch(() => undefined);
+  };
+
+  const exitFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      return;
+    }
+
+    await document.exitFullscreen().catch(() => undefined);
+  };
+
+  const handleStartSearch = async () => {
+    await enterFullscreen();
+    await startSearch();
+  };
+
+  const handleCancelSearch = async () => {
+    await cancelSearch();
+    await exitFullscreen();
+  };
+
+  const handleReset = async () => {
+    await reset();
+    await exitFullscreen();
+  };
+
   return (
     <motion.div layout className="mx-auto max-w-3xl">
       <Card className="relative overflow-hidden border-border/70 bg-surface/90">
@@ -165,7 +196,7 @@ export function MatchmakingPanel() {
 
           <div className="flex flex-wrap gap-3">
             {status === "idle" || status === "found" ? (
-              <Button onClick={startSearch} disabled={isLoading}>
+              <Button onClick={handleStartSearch} disabled={isLoading}>
                 {isLoading ? (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
                 ) : (
@@ -174,7 +205,7 @@ export function MatchmakingPanel() {
                 Find Match
               </Button>
             ) : (
-              <Button onClick={cancelSearch} disabled={isLoading} variant="danger">
+              <Button onClick={handleCancelSearch} disabled={isLoading} variant="danger">
                 {isLoading ? (
                   <LoaderCircle className="h-4 w-4 animate-spin" />
                 ) : (
@@ -187,7 +218,7 @@ export function MatchmakingPanel() {
               <Play className="h-4 w-4" />
               Refresh Status
             </Button>
-            <Button variant="ghost" onClick={reset} disabled={isLoading}>
+            <Button variant="ghost" onClick={handleReset} disabled={isLoading}>
               Reset
             </Button>
           </div>

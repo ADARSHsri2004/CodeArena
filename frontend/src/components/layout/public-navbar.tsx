@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { publicNavigation } from "@/constants/navigation";
 import { ArrowRight } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
@@ -9,6 +10,11 @@ import { UserAvatarMenu } from "@/components/user-avatar-menu";
 
 export function PublicNavbar() {
   const user = useAuthStore((state) => state.user);
+  const pathname = usePathname();
+
+  if (pathname?.startsWith("/battle/")) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-black-100/95 backdrop-blur-xl">

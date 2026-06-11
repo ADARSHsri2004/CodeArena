@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Award,
   Handshake,
   LoaderCircle,
+  Maximize,
+  ShieldAlert,
   Skull,
   Sparkles,
   Trophy,
@@ -37,12 +39,52 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
     clear,
   } = useMatchStore();
   const [timerLabel, setTimerLabel] = useState(() => getRemainingLabel());
+  const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
+  const allowFullscreenExitRef = useRef(false);
+
+  const enterFullscreen = useCallback(async () => {
+    if (!document.fullscreenEnabled || document.fullscreenElement) {
+      setShowFullscreenWarning(false);
+      return;
+    }
+
+    try {
+      await document.documentElement.requestFullscreen();
+      setShowFullscreenWarning(false);
+    } catch {
+      setShowFullscreenWarning(true);
+    }
+  }, []);
 
   useEffect(() => {
     clear();
     void loadMatch(matchId).then(() => joinArena(matchId));
     return () => clear();
   }, [clear, joinArena, loadMatch, matchId]);
+
+  useEffect(() => {
+    allowFullscreenExitRef.current = false;
+    void enterFullscreen();
+
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement || allowFullscreenExitRef.current) {
+        return;
+      }
+
+      setShowFullscreenWarning(true);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      allowFullscreenExitRef.current = true;
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+
+      if (document.fullscreenElement) {
+        void document.exitFullscreen();
+      }
+    };
+  }, [enterFullscreen]);
 
   useEffect(() => {
     let timeoutId = window.setTimeout(function tick() {
@@ -208,6 +250,35 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
               </div>
             </div>
           </motion.div>
+        </div>
+      ) : null}
+
+      {showFullscreenWarning ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-sm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="fullscreen-warning-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-amber-400/30 bg-[#15120c] p-6 text-white shadow-[0_28px_90px_rgba(0,0,0,0.65)]">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-300/25 bg-amber-400/10 text-amber-200">
+                <ShieldAlert className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 id="fullscreen-warning-title" className="text-xl font-semibold">
+                  Fullscreen required
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-white/75">
+                  Battle mode must stay fullscreen. Return to fullscreen to continue the match.
+                </p>
+              </div>
+            </div>
+            <Button className="mt-6 w-full" onClick={enterFullscreen}>
+              <Maximize className="h-4 w-4" />
+              Return to fullscreen
+            </Button>
+          </div>
         </div>
       ) : null}
     </div>
