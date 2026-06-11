@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Award,
+  BrainCircuit,
+  CheckCircle2,
   Handshake,
   LoaderCircle,
   Maximize,
+  RefreshCw,
   ShieldAlert,
   Skull,
   Sparkles,
@@ -19,6 +22,11 @@ import { MatchTimer } from "@/components/match-timer";
 import { ProblemWorkspacePanel } from "@/components/problem-workspace-panel";
 import { Button } from "@/components/ui/button";
 import { cppStarterTemplate } from "@/lib/cpp-template";
+import {
+  fetchAiBattleReview,
+  retryAiBattleReview,
+  type AiBattleReview,
+} from "@/lib/match-api";
 import { formatElo } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { useMatchStore } from "@/store/matchStore";
@@ -28,6 +36,8 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
   const userId = useAuthStore((state) => state.user?.id);
   const {
     match,
+    rawMatch,
+    matchState,
     result,
     error,
     isLoading,
@@ -40,6 +50,9 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
   } = useMatchStore();
   const [timerLabel, setTimerLabel] = useState(() => getRemainingLabel());
   const [showFullscreenWarning, setShowFullscreenWarning] = useState(false);
+  const [aiReview, setAiReview] = useState<AiBattleReview | null>(null);
+  const [aiReviewError, setAiReviewError] = useState<string | null>(null);
+  const [isAiReviewLoading, setIsAiReviewLoading] = useState(false);
   const allowFullscreenExitRef = useRef(false);
 
   const enterFullscreen = useCallback(async () => {
@@ -102,6 +115,70 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
     return () => window.clearTimeout(timeoutId);
   }, [expiresAt, getRemainingLabel, serverOffsetMs, match?.id]);
 
+  const loadAiReview = useCallback(async () => {
+    if (!result) {
+      return;
+    }
+
+    setIsAiReviewLoading(true);
+    setAiReviewError(null);
+
+    try {
+      const review = await fetchAiBattleReview(matchId);
+      setAiReview(review);
+    } catch (error) {
+      setAiReviewError(
+        error instanceof Error
+          ? error.message
+          : "AI review is not available right now.",
+      );
+    } finally {
+      setIsAiReviewLoading(false);
+    }
+  }, [matchId, result]);
+
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+
+    void loadAiReview();
+  }, [loadAiReview, result]);
+
+  useEffect(() => {
+    if (
+      !result ||
+      !aiReview ||
+      (aiReview.status !== "PENDING" && aiReview.status !== "GENERATING")
+    ) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void loadAiReview();
+    }, 3500);
+
+    return () => window.clearInterval(intervalId);
+  }, [aiReview, loadAiReview, result]);
+
+  const handleRetryAiReview = useCallback(async () => {
+    setIsAiReviewLoading(true);
+    setAiReviewError(null);
+
+    try {
+      const review = await retryAiBattleReview(matchId);
+      setAiReview(review);
+    } catch (error) {
+      setAiReviewError(
+        error instanceof Error
+          ? error.message
+          : "Unable to retry AI review.",
+      );
+    } finally {
+      setIsAiReviewLoading(false);
+    }
+  }, [matchId]);
+
   if (isLoading && !match) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-muted">
@@ -127,6 +204,14 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
   );
   const outcome = getOutcomeMeta(selfResult?.result);
   const OutcomeIcon = outcome.icon;
+  const isMatchActive =
+    match.status === "live" &&
+    (matchState?.status === "ACTIVE" || rawMatch?.status === "ACTIVE");
+  const editorDisabledReason = isMatchActive
+    ? null
+    : result
+      ? "Match finished"
+      : "Waiting for opponent";
 
   return (
     <div className="space-y-6">
@@ -137,7 +222,11 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
       <div className="grid gap-3 xl:grid-cols-[0.98fr_1.02fr]">
         <ProblemWorkspacePanel
           problem={match.problem}
-          statusLabel={`${match.opponent.username} - ${match.opponent.status}`}
+          statusLabel={
+            isMatchActive
+              ? `${match.opponent.username} - ${match.opponent.status}`
+              : `${match.opponent.username} - waiting`
+          }
         />
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -149,6 +238,7 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
             matchId={matchId}
             initialValue={cppStarterTemplate}
             battleMode
+            disabledReason={editorDisabledReason}
           />
           <EditorTestPanel compact publicTestCases={match.problem.publicTestCases} />
         </motion.div>
@@ -165,7 +255,7 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
             initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ type: "spring", stiffness: 180, damping: 20 }}
-            className={`relative w-full max-w-xl overflow-hidden rounded-[28px] border text-white shadow-[0_30px_120px_rgba(0,0,0,0.7)] ${outcome.panel}`}
+            className={`relative max-h-[92vh] w-full max-w-2xl overflow-hidden overflow-y-auto rounded-[28px] border text-white shadow-[0_30px_120px_rgba(0,0,0,0.7)] ${outcome.panel}`}
           >
             <div className={`absolute inset-0 opacity-90 ${outcome.backdrop}`} />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.14),_transparent_45%)]" />
@@ -236,6 +326,13 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
                 </div>
               </div>
 
+              <AiReviewCard
+                review={aiReview}
+                isLoading={isAiReviewLoading}
+                error={aiReviewError}
+                onRetry={handleRetryAiReview}
+              />
+
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <Button
                   variant="outline"
@@ -281,6 +378,138 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function AiReviewCard({
+  review,
+  isLoading,
+  error,
+  onRetry,
+}: {
+  review: AiBattleReview | null;
+  isLoading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  const isWaiting =
+    isLoading ||
+    !review ||
+    review.status === "PENDING" ||
+    review.status === "GENERATING";
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-white/90">
+          <BrainCircuit className="h-4 w-4 text-cyan-200" />
+          AI coach review
+        </div>
+        {review?.status === "COMPLETED" ? (
+          <span className="inline-flex items-center gap-1 text-xs text-emerald-200">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Ready
+          </span>
+        ) : null}
+      </div>
+
+      {isWaiting ? (
+        <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-white/75">
+          <LoaderCircle className="h-4 w-4 animate-spin text-cyan-200" />
+          Generating AI review...
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-sm text-amber-100">
+          {error}
+        </p>
+      ) : null}
+
+      {review?.status === "FAILED" ? (
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-white/75 sm:flex-row sm:items-center sm:justify-between">
+          <span>{review.failureReason ?? "AI review could not be generated right now."}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="border-white/15 bg-white/5"
+            onClick={onRetry}
+            disabled={isLoading}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </Button>
+        </div>
+      ) : null}
+
+      {review?.status === "COMPLETED" ? (
+        <div className="mt-4 space-y-4">
+          <p className="text-sm leading-6 text-white/80">{review.summary}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ReviewField label="Main issue" value={review.mainIssue} />
+            <ReviewField label="Complexity" value={review.yourComplexity} />
+            <ReviewField label="Better approach" value={review.betterApproach} />
+            <ReviewField label="Opponent comparison" value={review.opponentComparison} />
+          </div>
+          <ReviewList label="Missed edge cases" values={review.missedEdgeCases} />
+          <ReviewList label="Practice topics" values={review.practiceTopics} />
+          <ReviewList label="Recommended problems" values={review.recommendedProblems} />
+          {review.positiveFeedback ? (
+            <p className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-sm text-emerald-50">
+              {review.positiveFeedback}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ReviewField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
+  if (!value) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+      <p className="text-[10px] uppercase tracking-[0.24em] text-white/55">{label}</p>
+      <p className="mt-2 text-sm leading-5 text-white/80">{value}</p>
+    </div>
+  );
+}
+
+function ReviewList({
+  label,
+  values,
+}: {
+  label: string;
+  values: string[];
+}) {
+  if (values.length === 0) {
+    return null;
+  }
+
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.24em] text-white/55">{label}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {values.map((value) => (
+          <span
+            key={value}
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/75"
+          >
+            {value}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

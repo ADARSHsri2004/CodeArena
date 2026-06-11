@@ -5,6 +5,7 @@ const redisUrl =
 
 export const CODE_EXECUTION_QUEUE =
   "code_execution_queue";
+export const AI_REVIEW_QUEUE = "ai_review_queue";
 
 export const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: null,

@@ -88,6 +88,7 @@ model Match {
   problem      Problem            @relation(fields: [problemId], references: [id], onDelete: Cascade)
   participants MatchParticipant[]
   submissions  Submission[]
+  aiReviews    AiBattleReview[]
 
   @@index([status])
 }
@@ -151,4 +152,40 @@ model Submission {
   @@index([userId])
   @@index([problemId])
   @@index([matchId])
+}
+
+enum AiReviewStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+model AiBattleReview {
+  id                 String         @id @default(uuid())
+  matchId            String
+  userId             String
+  opponentId         String
+  problemId          String
+  status             AiReviewStatus @default(PENDING)
+  summary            String?
+  mainIssue          String?
+  yourComplexity     String?
+  betterApproach     String?
+  opponentComparison String?
+  missedEdgeCases    Json?
+  practiceTopics     Json?
+  recommendedProblems Json?
+  positiveFeedback   String?
+  rawAiResponse      Json?
+  failureReason      String?
+  attempts           Int            @default(0)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, userId])
+  @@index([userId])
+  @@index([status])
 }

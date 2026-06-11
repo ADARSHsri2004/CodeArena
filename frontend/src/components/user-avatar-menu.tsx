@@ -7,11 +7,17 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { logoutUser } from "@/lib/auth-api";
 import { useAuthStore } from "@/store/authStore";
+import { useMatchStore } from "@/store/matchStore";
+import { useMatchmakingStore } from "@/store/matchmakingStore";
+import { useSubmissionStore } from "@/store/submission.store";
 
 export function UserAvatarMenu() {
   const [open, setOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const signOut = useAuthStore((state) => state.signOut);
+  const clearMatch = useMatchStore((state) => state.clear);
+  const clearMatchmaking = useMatchmakingStore((state) => state.clearLocal);
+  const clearSubmission = useSubmissionStore((state) => state.clearSubmission);
 
   if (!user) {
     return null;
@@ -50,6 +56,9 @@ export function UserAvatarMenu() {
               try {
                 await logoutUser();
               } finally {
+                clearMatchmaking();
+                clearMatch();
+                clearSubmission();
                 signOut();
                 setOpen(false);
               }

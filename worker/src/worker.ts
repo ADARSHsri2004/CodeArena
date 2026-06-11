@@ -12,9 +12,14 @@ import {
   updateSubmissionJudgement,
 } from "./config/db";
 import {
+  AI_REVIEW_QUEUE,
   CODE_EXECUTION_QUEUE,
   redis,
 } from "./config/redis";
+import {
+  processAiReviewJob,
+  type AiReviewJob,
+} from "./ai-review/ai-review";
 import {
   emitSubmissionResult,
   workerSocket,
@@ -143,47 +148,75 @@ function connectWorkerSocket(timeoutMs = 5_000) {
   });
 }
 
+function isCodeExecutionWorkerEnabled() {
+  return process.env.CODE_EXECUTION_WORKER_ENABLED === "true";
+}
+
 async function startWorker() {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is required for the judge worker.");
   }
 
-  console.log("Waiting for Judge0 server to become reachable...");
+  const codeExecutionWorkerEnabled = isCodeExecutionWorkerEnabled();
 
-  // Keep the worker idle until the Judge0 API itself is reachable. Actual
-  // execution slots can still warm up after this, and job retries will handle
-  // temporary execution lag.
-  while (true) {
-    try {
-      await waitForJudge0Ready();
-      console.log("Judge0 server is reachable.");
-      break;
-    } catch (error) {
-      console.warn(
-        "Judge0 is not ready yet. Retrying in 5 seconds.",
-        error,
-      );
-      await wait(5_000);
+  if (codeExecutionWorkerEnabled) {
+    console.log("Waiting for Judge0 server to become reachable...");
+
+    // Keep the worker idle until the Judge0 API itself is reachable. Actual
+    // execution slots can still warm up after this, and job retries will handle
+    // temporary execution lag.
+    while (true) {
+      try {
+        await waitForJudge0Ready();
+        console.log("Judge0 server is reachable.");
+        break;
+      } catch (error) {
+        console.warn(
+          "Judge0 is not ready yet. Retrying in 5 seconds.",
+          error,
+        );
+        await wait(5_000);
+      }
     }
   }
 
   await connectWorkerSocket();
-  console.log(`Worker waiting on ${CODE_EXECUTION_QUEUE}...`);
+  console.log(
+    codeExecutionWorkerEnabled
+      ? `Worker waiting on ${CODE_EXECUTION_QUEUE} and ${AI_REVIEW_QUEUE}...`
+      : `Worker waiting on ${AI_REVIEW_QUEUE}...`,
+  );
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    const result = await redis.brpop(CODE_EXECUTION_QUEUE, 0);
+    const result = codeExecutionWorkerEnabled
+      ? await redis.brpop(
+          CODE_EXECUTION_QUEUE,
+          AI_REVIEW_QUEUE,
+          0,
+        )
+      : await redis.brpop(AI_REVIEW_QUEUE, 0);
 
     if (!result) {
       continue;
     }
 
-    const [, rawJob] = result;
-
-    let job: SubmissionJob | null = null;
+    const [queueName, rawJob] = result;
 
     try {
-      job = JSON.parse(rawJob) as SubmissionJob;
+      if (queueName === AI_REVIEW_QUEUE) {
+        const job = JSON.parse(rawJob) as AiReviewJob;
+        console.log(`Processing AI review ${job.reviewId}...`);
+        const outcome = await processAiReviewJob(job);
+
+        if (outcome === "done") {
+          console.log(`Finished AI review ${job.reviewId}.`);
+        }
+
+        continue;
+      }
+
+      const job = JSON.parse(rawJob) as SubmissionJob;
       console.log(`Processing submission ${job.submissionId}...`);
       const outcome = await processJob(job);
 

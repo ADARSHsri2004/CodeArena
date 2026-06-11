@@ -3,6 +3,7 @@ import { protect } from "../../middleware/auth.middleware";
 import { validate } from "../../middleware/validate.middleware";
 import {
   forfeitMatchHandler,
+  getAiReviewHandler,
   getLeaderboardHandler,
   getMatchHandler,
   getMatchHistoryHandler,
@@ -10,6 +11,7 @@ import {
   joinMatchHandler,
   joinQueueHandler,
   leaveQueueHandler,
+  retryAiReviewHandler,
 } from "./match.controller";
 import { joinQueueSchema } from "./match.validation";
 
@@ -28,7 +30,9 @@ router.get("/matches/history", protect, getMatchHistoryHandler);
 router.get("/leaderboard", getLeaderboardHandler);
 
 router.get("/matches/:matchId", protect, getMatchHandler);
+router.get("/matches/:matchId/ai-review", protect, getAiReviewHandler);
 router.post("/matches/:matchId/join", protect, joinMatchHandler);
 router.post("/matches/:matchId/forfeit", protect, forfeitMatchHandler);
+router.post("/matches/:matchId/ai-review/retry", protect, retryAiReviewHandler);
 
 export default router;

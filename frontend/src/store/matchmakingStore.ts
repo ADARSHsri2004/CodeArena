@@ -27,6 +27,7 @@ type MatchmakingState = {
   startSearch: () => Promise<void>;
   cancelSearch: () => Promise<void>;
   handleMatchFound: (payload: MatchFoundEvent) => void;
+  clearLocal: () => void;
   reset: () => Promise<void>;
 };
 
@@ -129,6 +130,19 @@ export const useMatchmakingStore = create<MatchmakingState>((set, get) => ({
       status: "found",
       matchId: payload.matchId,
       opponent: payload.opponent,
+    });
+  },
+  clearLocal: () => {
+    set({
+      status: "idle",
+      matchId: null,
+      opponent: null,
+      queuePosition: null,
+      queueCount: 0,
+      onlineCount: 0,
+      searchingCount: 0,
+      error: null,
+      isLoading: false,
     });
   },
   reset: async () => {

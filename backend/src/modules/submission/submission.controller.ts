@@ -54,12 +54,18 @@ export const createSubmissionHandler = async (
       submission,
     });
   } catch (error: any) {
+    if (error.message === "Match is not active") {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     if (
       error.message === "User not found" ||
       error.message === "Problem not found" ||
       error.message === "Match not found" ||
       error.message === "You are not a participant in this match" ||
-      error.message === "Match is not active" ||
       error.message === "Submission problem does not match the assigned problem" ||
       error.message === "Match already has a winner"
     ) {

@@ -2,6 +2,10 @@ import { Response } from "express";
 import { AuthRequest } from "../../middleware/auth.middleware";
 import { prisma } from "../../config/prisma";
 import {
+  getAiReviewForUser,
+  retryAiReviewForUser,
+} from "./ai-review.service";
+import {
   ensureUserCanQueue,
   forfeitMatch,
   getLeaderboard,
@@ -323,6 +327,115 @@ export const forfeitMatchHandler = async (
 
     if (message === "Match already finished") {
       return res.status(409).json({
+        success: false,
+        message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message,
+    });
+  }
+};
+
+export const getAiReviewHandler = async (
+  req: MatchParamsRequest,
+  res: Response
+) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const review = await getAiReviewForUser(
+      req.params.matchId,
+      req.user.id
+    );
+
+    return res.json({
+      success: true,
+      review,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    if (
+      message === "Match not found" ||
+      message === "Opponent not found"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message,
+      });
+    }
+
+    if (message === "Match is not finished") {
+      return res.status(409).json({
+        success: false,
+        message,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message,
+    });
+  }
+};
+
+export const retryAiReviewHandler = async (
+  req: MatchParamsRequest,
+  res: Response
+) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const review = await retryAiReviewForUser(
+      req.params.matchId,
+      req.user.id
+    );
+
+    return res.json({
+      success: true,
+      review,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+
+    if (
+      message === "Match not found" ||
+      message === "Opponent not found"
+    ) {
+      return res.status(404).json({
+        success: false,
+        message,
+      });
+    }
+
+    if (
+      message === "Match is not finished" ||
+      message === "Please wait before retrying AI review" ||
+      message === "AI review retry limit reached"
+    ) {
+      return res.status(409).json({
+        success: false,
+        message,
+      });
+    }
+
+    if (message === "AI review is disabled") {
+      return res.status(503).json({
         success: false,
         message,
       });

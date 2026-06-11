@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import {
   registerUser,
   loginUser
@@ -25,6 +26,8 @@ import {
 } from "../utils/oauth-state";
 import crypto from "crypto";
 import { createAuthToken } from "../services/auth.service";
+import { JWT_SECRET } from "../config/jwt";
+import { cleanupUserMatchSession } from "../modules/match/match.service";
 
 function logAuthError(
   action: "register" | "login" | "google",
@@ -163,9 +166,23 @@ export const login = async (
 };
 
 export const logout = async (
-  _req: Request,
+  req: Request,
   res: Response
 ) => {
+  const token = getCookieValueFromHeaders(req.headers, AUTH_COOKIE_NAME);
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { id?: string };
+
+      if (decoded.id) {
+        await cleanupUserMatchSession(decoded.id);
+      }
+    } catch (error) {
+      console.warn("Failed to clean up user session during logout:", error);
+    }
+  }
+
   res.clearCookie(AUTH_COOKIE_NAME, {
     path: "/",
   });

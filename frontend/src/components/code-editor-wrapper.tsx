@@ -32,11 +32,13 @@ export function CodeEditorWrapper({
   problemId,
   matchId,
   battleMode = false,
+  disabledReason,
 }: {
   initialValue: string;
   problemId?: string;
   matchId?: string;
   battleMode?: boolean;
+  disabledReason?: string | null;
 }) {
   const [language] = useState<SubmissionLanguage>("CPP");
   const [value, setValue] = useState(initialValue);
@@ -171,7 +173,7 @@ export function CodeEditorWrapper({
   );
 
   const handleSubmit = async () => {
-    if (!problemId || isSubmitting) {
+    if (!problemId || isSubmitting || disabledReason) {
       return;
     }
 
@@ -198,7 +200,7 @@ export function CodeEditorWrapper({
   };
 
   const handleRun = async () => {
-    if (!problemId || isSubmitting || isRunning) {
+    if (!problemId || isSubmitting || isRunning || disabledReason) {
       return;
     }
 
@@ -264,7 +266,7 @@ export function CodeEditorWrapper({
             </Select>
             <div className="flex items-center gap-2 text-[14px] text-[#b5b5b5]">
               <Lock className="h-[14px] w-[14px]" />
-              Auto
+              {disabledReason ?? "Auto"}
             </div>
           </div>
 
@@ -303,7 +305,8 @@ export function CodeEditorWrapper({
               size="sm"
               className="ml-1 h-8 rounded-md border-white/10 bg-transparent px-3 text-[13px] text-[#e7e7e7]"
               onClick={handleRun}
-              disabled={!problemId || isSubmitting || isRunning}
+              disabled={!problemId || isSubmitting || isRunning || Boolean(disabledReason)}
+              title={disabledReason ?? undefined}
             >
               {isRunning ? (
                 <LoaderCircle className="h-[14px] w-[14px] animate-spin" />
@@ -315,7 +318,8 @@ export function CodeEditorWrapper({
             <Button
               size="sm"
               onClick={handleSubmit}
-              disabled={!problemId || isSubmitting}
+              disabled={!problemId || isSubmitting || Boolean(disabledReason)}
+              title={disabledReason ?? undefined}
               className="ml-2 h-8 rounded-md bg-[#1f9d55] px-4 text-[13px] font-semibold text-white hover:bg-[#22ab5f]"
             >
               <Send className="h-[14px] w-[14px]" />

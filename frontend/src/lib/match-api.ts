@@ -114,6 +114,27 @@ export type MatchResultEvent = {
   }>;
 };
 
+export type AiBattleReview = {
+  id: string;
+  matchId: string;
+  userId: string;
+  opponentId: string;
+  problemId: string;
+  status: "PENDING" | "GENERATING" | "COMPLETED" | "FAILED";
+  summary: string | null;
+  mainIssue: string | null;
+  yourComplexity: string | null;
+  betterApproach: string | null;
+  opponentComparison: string | null;
+  missedEdgeCases: string[];
+  practiceTopics: string[];
+  recommendedProblems: string[];
+  positiveFeedback: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type BattleMatchResponse = {
   id: string;
   status: string;
@@ -195,6 +216,22 @@ export async function forfeitMatch(matchId: string) {
     result: MatchResultEvent | null;
   }>(`/matches/${matchId}/forfeit`);
   return data.result;
+}
+
+export async function fetchAiBattleReview(matchId: string) {
+  const { data } = await api.get<{
+    success: boolean;
+    review: AiBattleReview | null;
+  }>(`/matches/${matchId}/ai-review`);
+  return data.review;
+}
+
+export async function retryAiBattleReview(matchId: string) {
+  const { data } = await api.post<{
+    success: boolean;
+    review: AiBattleReview | null;
+  }>(`/matches/${matchId}/ai-review/retry`);
+  return data.review;
 }
 
 export async function fetchLeaderboard() {

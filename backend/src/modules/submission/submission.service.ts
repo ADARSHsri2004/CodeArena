@@ -3,7 +3,10 @@ import { prisma } from "../../config/prisma";
 import { SubmissionStatus } from "../../generated/prisma2/enums";
 import type { Submission } from "../../generated/prisma2/client";
 import type { CreateSubmissionBody } from "./submission.validation";
-import { validateMatchSubmission } from "../match/match.service";
+import {
+  handleMatchSubmissionResult,
+  validateMatchSubmission,
+} from "../match/match.service";
 import {
   evaluatePublicSubmissionPreview,
   judgeSubmission,
@@ -59,15 +62,7 @@ export const createSubmission = async (
     },
   });
 
-  try {
-    const judgedSubmission = await judgeSubmission(submission.id);
-
-    if (!judgedSubmission) {
-      throw new Error("Failed to judge submission");
-    }
-
-    return judgedSubmission;
-  } catch (error) {
+  void judgeSubmission(submission.id).catch(async (error) => {
     const failedSubmission = await prisma.submission.update({
       where: {
         id: submission.id,
@@ -83,8 +78,10 @@ export const createSubmission = async (
       },
     });
 
-    return failedSubmission;
-  }
+    await handleMatchSubmissionResult(failedSubmission);
+  });
+
+  return submission;
 };
 
 export const getSubmissionById = async (

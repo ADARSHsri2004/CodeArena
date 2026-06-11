@@ -11,6 +11,7 @@ import { getIo } from "../../config/socket";
 import { MatchStatus, ParticipantResult } from "../../generated/prisma2/enums";
 import type { Submission } from "../../generated/prisma2/client";
 import { calculateMatchEloChanges } from "./elo.service";
+import { createAiReviewJobsForMatch } from "./ai-review.service";
 import { publishMatchEvent } from "./match.realtime";
 import {
   atomicallyPairPlayers,
@@ -18,7 +19,9 @@ import {
   getQueuePlayerMeta,
   getUserActiveMatchId,
   isWithinEloRange,
+  leaveMatchmakingQueue,
   listQueuePlayers,
+  markUserOffline,
   setUserActiveMatchId,
 } from "./matchmaking.service";
 import type {
@@ -32,8 +35,35 @@ import type {
   RedisMatchState,
 } from "./match.types";
 
+const WAITING_MATCH_JOIN_GRACE_MS = 2 * 60 * 1000;
+
 function matchStateKey(matchId: string) {
   return `${MATCH_STATE_PREFIX}${matchId}`;
+}
+
+async function cancelWaitingMatch(
+  matchId: string,
+  participantIds: string[]
+) {
+  await prisma.match.update({
+    where: { id: matchId },
+    data: {
+      status: MatchStatus.CANCELLED,
+      endedAt: new Date(),
+    },
+  }).catch(() => undefined);
+
+  await redis
+    .multi()
+    .del(matchStateKey(matchId))
+    .zrem(MATCH_EXPIRY_INDEX, matchId)
+    .exec();
+
+  await Promise.all(
+    participantIds.map((participantId) =>
+      clearUserActiveMatchId(participantId).catch(() => undefined)
+    )
+  );
 }
 
 function difficultyToRatingRange(
@@ -927,6 +957,7 @@ export async function finishMatch(
   };
 
   await publishMatchRoomEvent(matchId, "match_result", resultPayload);
+  await createAiReviewJobsForMatch(matchId);
 
   return resultPayload;
 }
@@ -1074,7 +1105,41 @@ export async function getUserMatchHistory(userId: string, limit = 20) {
 export async function ensureUserCanQueue(userId: string) {
   const activeMatchId = await getUserActiveMatchId(userId);
   if (activeMatchId) {
+    const dbMatch = await prisma.match.findUnique({
+      where: { id: activeMatchId },
+      select: {
+        status: true,
+        createdAt: true,
+        participants: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (
+      !dbMatch ||
+      dbMatch.status === MatchStatus.FINISHED ||
+      dbMatch.status === MatchStatus.CANCELLED
+    ) {
+      await clearUserActiveMatchId(userId);
+      return;
+    }
+
     const state = await getRedisMatchState(activeMatchId);
+    const isStaleWaitingMatch =
+      state?.status === "WAITING" &&
+      Date.now() - dbMatch.createdAt.getTime() > WAITING_MATCH_JOIN_GRACE_MS;
+
+    if (isStaleWaitingMatch) {
+      await cancelWaitingMatch(
+        activeMatchId,
+        dbMatch.participants.map((participant) => participant.userId)
+      );
+      return;
+    }
+
     if (state && state.status !== "FINISHED") {
       throw new Error("You are already in an active match");
     }
@@ -1084,4 +1149,26 @@ export async function ensureUserCanQueue(userId: string) {
 
 export async function getQueuePlayer(userId: string) {
   return getQueuePlayerMeta(userId);
+}
+
+export async function cleanupUserMatchSession(userId: string) {
+  await leaveMatchmakingQueue(userId).catch(() => undefined);
+  await markUserOffline(userId).catch(() => undefined);
+
+  const activeMatchId = await getUserActiveMatchId(userId);
+  if (!activeMatchId) {
+    return;
+  }
+
+  const state = await getRedisMatchState(activeMatchId);
+  if (state?.status === "WAITING") {
+    await cancelWaitingMatch(activeMatchId, state.playerIds);
+    return;
+  }
+
+  try {
+    await forfeitMatch(userId, activeMatchId);
+  } catch {
+    await clearUserActiveMatchId(userId).catch(() => undefined);
+  }
 }
