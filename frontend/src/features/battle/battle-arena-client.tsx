@@ -106,6 +106,7 @@ export function BattleArenaClient({ matchId }: { matchId: string }) {
             problemId={match.problem.id}
             matchId={matchId}
             initialValue={cppStarterTemplate}
+            battleMode
           />
           <EditorTestPanel compact publicTestCases={match.problem.publicTestCases} />
         </motion.div>

@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { OnMount } from "@monaco-editor/react";
 import {
   BookMarked,
   Braces,
@@ -30,13 +31,16 @@ export function CodeEditorWrapper({
   initialValue,
   problemId,
   matchId,
+  battleMode = false,
 }: {
   initialValue: string;
   problemId?: string;
   matchId?: string;
+  battleMode?: boolean;
 }) {
   const [language] = useState<SubmissionLanguage>("CPP");
   const [value, setValue] = useState(initialValue);
+  const cleanupClipboardBlockersRef = useRef<(() => void) | null>(null);
   const {
     submitSubmission,
     runSubmission,
@@ -98,6 +102,73 @@ export function CodeEditorWrapper({
 
     return () => window.clearTimeout(timeout);
   }, [toast, clearToast]);
+
+  useEffect(() => {
+    return () => {
+      cleanupClipboardBlockersRef.current?.();
+      cleanupClipboardBlockersRef.current = null;
+    };
+  }, []);
+
+  const handleEditorMount = useCallback<OnMount>(
+    (editor) => {
+      cleanupClipboardBlockersRef.current?.();
+      cleanupClipboardBlockersRef.current = null;
+
+      if (!battleMode) {
+        return;
+      }
+
+      const editorNode = editor.getDomNode();
+
+      if (!editorNode) {
+        return;
+      }
+
+      const blockClipboardEvent: EventListener = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      };
+
+      const blockDropEvent: EventListener = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      };
+
+      const blockClipboardShortcut = (event: KeyboardEvent) => {
+        const key = event.key.toLowerCase();
+        const isClipboardShortcut =
+          (event.ctrlKey || event.metaKey) &&
+          (key === "c" || key === "v" || key === "x");
+        const isInsertClipboardShortcut =
+          event.key === "Insert" && (event.shiftKey || event.ctrlKey);
+
+        if (!isClipboardShortcut && !isInsertClipboardShortcut) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+      };
+
+      editorNode.addEventListener("copy", blockClipboardEvent, true);
+      editorNode.addEventListener("cut", blockClipboardEvent, true);
+      editorNode.addEventListener("paste", blockClipboardEvent, true);
+      editorNode.addEventListener("dragover", blockDropEvent, true);
+      editorNode.addEventListener("drop", blockDropEvent, true);
+      editorNode.addEventListener("keydown", blockClipboardShortcut, true);
+
+      cleanupClipboardBlockersRef.current = () => {
+        editorNode.removeEventListener("copy", blockClipboardEvent, true);
+        editorNode.removeEventListener("cut", blockClipboardEvent, true);
+        editorNode.removeEventListener("paste", blockClipboardEvent, true);
+        editorNode.removeEventListener("dragover", blockDropEvent, true);
+        editorNode.removeEventListener("drop", blockDropEvent, true);
+        editorNode.removeEventListener("keydown", blockClipboardShortcut, true);
+      };
+    },
+    [battleMode],
+  );
 
   const handleSubmit = async () => {
     if (!problemId || isSubmitting) {
@@ -287,6 +358,7 @@ export function CodeEditorWrapper({
               },
             });
           }}
+          onMount={handleEditorMount}
           theme={editorThemeName}
           options={options}
         />

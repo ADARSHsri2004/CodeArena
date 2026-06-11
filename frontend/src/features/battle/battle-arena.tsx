@@ -28,6 +28,7 @@ export function BattleArena({ match }: { match: BattleMatch }) {
           <CodeEditorWrapper
             problemId={match.problem.id}
             initialValue={cppStarterTemplate}
+            battleMode
           />
           <EditorTestPanel compact publicTestCases={match.problem.publicTestCases} />
         </motion.div>
