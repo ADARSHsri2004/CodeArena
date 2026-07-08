@@ -78,6 +78,9 @@ After the match result is saved, the backend creates one `AiBattleReview` record
 
 The AI prompt excludes hidden test cases, JWTs, emails, secrets, private user data, and full internal logs. It only receives problem metadata, final code, judge verdicts, test counts, timings, and high-level failure reasons.
 
+<img width="1870" height="4886" alt="Untitled-2026-07-08-2341" src="https://github.com/user-attachments/assets/529372c2-f354-4517-80a4-09ab4656b814" />
+
+
 ## Pages And Screens
 
 Frontend routes currently include:
